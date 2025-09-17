@@ -1,12 +1,16 @@
 using System;
+using System.Dynamic;
+using Domain.Entities;
+using Domain.Enum;
 
-namespace Domain;
+namespace Domain.Entities;
 
 public class Question
 {
-    public Guid Id { get; set; }
-    public Guid ScenarioId { get; set; }
-    public string Role { get; set; }
-    public string Text { get; set; }
-    public string AcceptedAnswer { get; set; }
+    public required Guid Id { get; set; }
+    public required string QuestionText { get; set; }
+    public required Priority Priority { get; set; } //low medium high
+    public required string AcceptedAnswer { get; set; } //
+    public required ICollection<Role> Roles { get; set; } = new List<Role>(); // M:N
+
 }

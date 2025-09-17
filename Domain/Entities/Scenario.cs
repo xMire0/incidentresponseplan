@@ -1,12 +1,14 @@
 using System;
+using Domain.Enum;
 
-namespace Domain;
+namespace Domain.Entities;
 
 public class Scenario
 {
-    public Guid Id { get; set; }
-    public string Title { get; set; }
-    public string Description { get; set; }
-    public ICollection<Question> Questions { get; set; } = new List<Question>();
-}
+    public required Guid Id { get;  set; }           
+    public required string Title { get;  set; }    
+    public required string Description { get;  set; }
+    public required  DateTime CreatedAt { get;  set; }      
+    public required Risk Risk { get;  set; } //low medium el. high
 
+}
