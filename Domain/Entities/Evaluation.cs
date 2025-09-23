@@ -13,4 +13,5 @@ public class Evaluation
 
     // JSON med detaljer per spørgsmål
     public string DetailsJson { get; set; } = "{}";
+    public string Comments { get; set; } = null!;
 }

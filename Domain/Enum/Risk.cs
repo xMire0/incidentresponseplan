@@ -7,6 +7,7 @@ public enum Risk
 
     Low,
     Medium,
-    High
+    High,
+    Extreme
 
 }
