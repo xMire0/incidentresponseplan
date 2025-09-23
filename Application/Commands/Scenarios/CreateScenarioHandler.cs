@@ -2,6 +2,8 @@ using Application.Interfaces;
 using Domain.Entities;
 using MediatR;
 
+
+
 namespace Application.Commands.Scenarios;
 
 public class CreateScenarioCommandHandler : IRequestHandler<CreateScenarioCommand, Guid>
