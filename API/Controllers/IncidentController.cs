@@ -17,4 +17,13 @@ public class IncidentController : BaseApiController
 
     }
 
+    [HttpDelete("{id}")]
+
+    public async Task<IActionResult> DeleteIncident(string id)
+    {
+        await Mediator.Send(new DeleteIncident.Command { Id = id });
+        return Ok();
+    }
+
+    //[HttpPut]
 }
