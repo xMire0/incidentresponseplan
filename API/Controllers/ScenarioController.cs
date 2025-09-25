@@ -1,20 +1,19 @@
-using Application.Commands.Scenarios;
+using Application.Common;
+using Application.Scenarios.Commands;
 using Domain.Entities;
-using Domain.Enum;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 
-namespace Api.Controllers;
+namespace API.Controllers;
 
-public class ScenarioController : ControllerBase
+public class ScenariosController : BaseApiController
 {
-
     [HttpPost]
 
     public async Task<ActionResult<string>> CreateScenario(Scenario scenario)
     {
-        return await Mediator.Send(new CreateScenarioCommand {Title, Risk = scenario.Risk, Description = scenario.Description });
-     
+        return await Mediator.Send(new CreateScenario.Command { Scenario = scenario });
+
     }
 
 }

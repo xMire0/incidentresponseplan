@@ -13,12 +13,16 @@ public class DbInitializer
         var scenarios = new List<Scenario>
         {
             new (){
-                Id = Guid.NewGuid(),
-                Title = "test",
+                Title = "Phising",
                 Description = "test-description",
                 CreatedAt = DateTime.Now,
-                Risk = Domain.Enum.Risk.Medium
-            }
+                //Risk = Domain.Enum.Risk.Medium
+            },
+            new (){
+                Title = "DDOS",
+                Description = "TCP Attack, synflood",
+                CreatedAt = DateTime.Now,
+            } 
         };
         context.Scenarios.AddRange(scenarios);
         await context.SaveChangesAsync();

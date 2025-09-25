@@ -6,6 +6,7 @@ namespace Domain.Entities;
 
 public class QuestionRole
 {
+
     public required Guid QuestionId { get; set; }
     public Question Question { get; set; } = null!;
 
