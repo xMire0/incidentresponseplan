@@ -17,4 +17,13 @@ public class QuestionController : BaseApiController
 
     }
 
+    [HttpDelete("{id}")]
+
+    public async Task<IActionResult> DeleteQuestion(string id)
+    {
+        await Mediator.Send(new DeleteQuestion.Command { Id = id });
+        return Ok();
+    }
+
+
 }
