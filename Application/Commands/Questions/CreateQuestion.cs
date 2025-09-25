@@ -5,7 +5,7 @@ using Persistence;
 
 namespace Application.Commands;
 
-public class AddQuestionCommand
+public class CreateQuestion
 {
     public class Command : IRequest<string>
     {

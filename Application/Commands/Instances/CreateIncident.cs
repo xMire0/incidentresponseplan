@@ -5,7 +5,7 @@ using Persistence;
 
 namespace Application.Commands;
 
-public class AddIncident
+public class CreateIncident
 {
     public class Command : IRequest<string>
     {

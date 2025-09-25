@@ -484,3 +484,6 @@ $RECYCLE.BIN/
 *.swp
 API/appsettings.json
 API/Incident.db
+API/Incident.db-shm
+.gitignore
+.gitignore

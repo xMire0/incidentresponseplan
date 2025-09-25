@@ -5,7 +5,7 @@ using Persistence;
 
 namespace Application.Commands;
 
-public class AddResponse
+public class CreateResponse
 {
     public class Command : IRequest<string>
     {
