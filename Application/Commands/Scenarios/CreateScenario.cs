@@ -4,7 +4,7 @@ using Domain.Entities;
 using MediatR;
 using Persistence;
 
-namespace Application.Scenarios.Commands;
+namespace Application.Commands.Scenarios;
 
 public class CreateScenario
 {

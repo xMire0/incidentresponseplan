@@ -3,7 +3,7 @@ using MediatR;
 using Persistence;
 
 
-namespace Application.Commands;
+namespace Application.Commands.Scenarios;
 
 public class DeleteScenario
 {

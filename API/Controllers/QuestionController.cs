@@ -1,6 +1,6 @@
 using Application.Commands;
 using Application.Common;
-using Application.Scenarios.Commands;
+using Application.Commands.Questions;
 using Domain.Entities;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
@@ -25,5 +25,13 @@ public class QuestionController : BaseApiController
         return Ok();
     }
 
+    [HttpPut("{id}")]
 
+    public async Task<ActionResult<string>> EditQuestion(Question question)
+    {
+
+        await Mediator.Send(new EditQuestion.Command { Question = question });
+
+        return NoContent();
+    }
 }

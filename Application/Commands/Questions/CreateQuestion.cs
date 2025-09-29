@@ -3,7 +3,7 @@ using Domain.Entities;
 using MediatR;
 using Persistence;
 
-namespace Application.Commands;
+namespace Application.Commands.Questions;
 
 public class CreateQuestion
 {
