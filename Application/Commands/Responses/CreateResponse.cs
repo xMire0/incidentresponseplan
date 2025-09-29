@@ -3,7 +3,7 @@ using MediatR;
 using Persistence;
 
 
-namespace Application.Commands.Responses;
+namespace Application.Commands;
 
 public class CreateResponse
 {

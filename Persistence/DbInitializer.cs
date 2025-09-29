@@ -16,13 +16,15 @@ public class DbInitializer
                 Title = "Phising",
                 Description = "test-description",
                 CreatedAt = DateTime.Now,
-                //Risk = Domain.Enum.Risk.Medium
+                Risk = Domain.Enum.Risk.High
             },
             new (){
                 Title = "DDOS",
                 Description = "TCP Attack, synflood",
                 CreatedAt = DateTime.Now,
-            } 
+                Risk = Domain.Enum.Risk.High
+
+            }
         };
         context.Scenarios.AddRange(scenarios);
         await context.SaveChangesAsync();

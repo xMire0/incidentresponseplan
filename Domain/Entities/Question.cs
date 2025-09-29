@@ -9,7 +9,7 @@ namespace Domain.Entities;
 
 public class Question
 {
-    public required Guid Id { get; set; }
+    public Guid Id { get; private set; } = Guid.NewGuid();    
     public required string Text { get; set; }
     public required Priority Priority { get; set; }
 

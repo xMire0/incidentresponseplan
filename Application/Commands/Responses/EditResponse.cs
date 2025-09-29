@@ -1,28 +1,27 @@
+using System;
 using Domain.Entities;
 using MediatR;
 using Persistence;
 
-
 namespace Application.Commands;
 
-public class DeleteIncident
+public class EditResponse
 {
     public class Command : IRequest
     {
-        public required string Id { get; set; }
+
+        public required Response Response { get; set; }
+
     }
 
     public class Handler(AppDbContext context) : IRequestHandler<Command>
     {
-
         public async Task Handle(Command request, CancellationToken cancellationToken)
+
         {
+            var response = await context.Responses.FindAsync([request.Response.Id], cancellationToken)
+                ?? throw new Exception("Response is not found");
 
-            var incident = await context.Incidents.FindAsync([request.Id], cancellationToken) ?? throw new Exception("Incident not found");
-
-            context.Remove(incident);
-
-            await context.SaveChangesAsync(cancellationToken);
 
         }
     }

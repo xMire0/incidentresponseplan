@@ -5,7 +5,7 @@ namespace Domain.Entities;
 
 public class Role
 {
-    public required Guid Id { get; set; }
+    public Guid Id { get; private set; } = Guid.NewGuid();    
     public required string Name { get; set; }
 
     // Relation: Role ↔ Questions (M:N via QuestionRole)

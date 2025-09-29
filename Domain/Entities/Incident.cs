@@ -6,8 +6,7 @@ using Domain.Enum;
 
 public class Incident
 {
-    public required Guid Id { get; set; }
-
+    public Guid Id { get; private set; } = Guid.NewGuid();    
     public required Guid ScenarioId { get; set; }
     public Scenario Scenario { get; set; } = null!;
 

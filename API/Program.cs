@@ -1,4 +1,4 @@
-using Application.Scenarios.Commands;
+using Application.Commands;
 using Microsoft.EntityFrameworkCore;
 using Persistence;
 

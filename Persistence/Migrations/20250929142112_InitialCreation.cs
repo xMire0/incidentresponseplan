@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace Persistence.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialMigration : Migration
+    public partial class InitialCreation : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -40,10 +40,11 @@ namespace Persistence.Migrations
                 name: "Scenarios",
                 columns: table => new
                 {
-                    Id = table.Column<string>(type: "TEXT", nullable: false),
+                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
                     Title = table.Column<string>(type: "TEXT", nullable: false),
                     Description = table.Column<string>(type: "TEXT", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: false)
+                    CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: false),
+                    Risk = table.Column<int>(type: "INTEGER", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -55,8 +56,7 @@ namespace Persistence.Migrations
                 columns: table => new
                 {
                     QuestionId = table.Column<Guid>(type: "TEXT", nullable: false),
-                    RoleId = table.Column<Guid>(type: "TEXT", nullable: false),
-                    AcceptedAnswer = table.Column<string>(type: "TEXT", nullable: false)
+                    RoleId = table.Column<Guid>(type: "TEXT", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -81,7 +81,6 @@ namespace Persistence.Migrations
                 {
                     Id = table.Column<Guid>(type: "TEXT", nullable: false),
                     ScenarioId = table.Column<Guid>(type: "TEXT", nullable: false),
-                    ScenarioId1 = table.Column<string>(type: "TEXT", nullable: true),
                     Status = table.Column<int>(type: "INTEGER", nullable: false),
                     StartedAt = table.Column<DateTime>(type: "TEXT", nullable: true),
                     CompletedAt = table.Column<DateTime>(type: "TEXT", nullable: true)
@@ -90,10 +89,11 @@ namespace Persistence.Migrations
                 {
                     table.PrimaryKey("PK_Incidents", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_Incidents_Scenarios_ScenarioId1",
-                        column: x => x.ScenarioId1,
+                        name: "FK_Incidents_Scenarios_ScenarioId",
+                        column: x => x.ScenarioId,
                         principalTable: "Scenarios",
-                        principalColumn: "Id");
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
@@ -159,9 +159,9 @@ namespace Persistence.Migrations
                 column: "IncidentId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Incidents_ScenarioId1",
+                name: "IX_Incidents_ScenarioId",
                 table: "Incidents",
-                column: "ScenarioId1");
+                column: "ScenarioId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_QuestionRoles_RoleId",

@@ -3,7 +3,7 @@ using MediatR;
 using Persistence;
 
 
-namespace Application.Commands.Incidents;
+namespace Application.Commands;
 
 public class CreateIncident
 {

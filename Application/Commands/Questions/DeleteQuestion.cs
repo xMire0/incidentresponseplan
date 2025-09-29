@@ -3,13 +3,13 @@ using MediatR;
 using Persistence;
 
 
-namespace Application.Commands.Questions;
+namespace Application.Commands;
 
 public class DeleteQuestion
 {
     public class Command : IRequest
     {
-        public required string Id { get; set; }
+        public required Guid Id { get; set; }
     }
 
     public class Handler(AppDbContext context) : IRequestHandler<Command>

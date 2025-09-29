@@ -2,7 +2,7 @@ namespace Domain.Entities;
 
 public class Response
 {
-    public required Guid Id { get; set; }
+    public Guid Id { get; private set; } = Guid.NewGuid();    
 
     public required Guid IncidentId { get; set; }
     public Incident Incident { get; set; } = null!;

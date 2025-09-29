@@ -11,8 +11,8 @@ using Persistence;
 namespace Persistence.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20250925084706_InitialMigration")]
-    partial class InitialMigration
+    [Migration("20250929142112_InitialCreation")]
+    partial class InitialCreation
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -65,9 +65,6 @@ namespace Persistence.Migrations
                     b.Property<Guid>("ScenarioId")
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("ScenarioId1")
-                        .HasColumnType("TEXT");
-
                     b.Property<DateTime?>("StartedAt")
                         .HasColumnType("TEXT");
 
@@ -76,7 +73,7 @@ namespace Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ScenarioId1");
+                    b.HasIndex("ScenarioId");
 
                     b.ToTable("Incidents");
                 });
@@ -105,10 +102,6 @@ namespace Persistence.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<Guid>("RoleId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("AcceptedAnswer")
-                        .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.HasKey("QuestionId", "RoleId");
@@ -168,7 +161,8 @@ namespace Persistence.Migrations
 
             modelBuilder.Entity("Domain.Entities.Scenario", b =>
                 {
-                    b.Property<string>("Id")
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime>("CreatedAt")
@@ -177,6 +171,9 @@ namespace Persistence.Migrations
                     b.Property<string>("Description")
                         .IsRequired()
                         .HasColumnType("TEXT");
+
+                    b.Property<int>("Risk")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("Title")
                         .IsRequired()
@@ -202,7 +199,9 @@ namespace Persistence.Migrations
                 {
                     b.HasOne("Domain.Entities.Scenario", "Scenario")
                         .WithMany()
-                        .HasForeignKey("ScenarioId1");
+                        .HasForeignKey("ScenarioId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("Scenario");
                 });

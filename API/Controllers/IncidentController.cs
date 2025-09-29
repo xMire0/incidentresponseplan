@@ -1,6 +1,7 @@
 using Application.Commands;
 using Application.Common;
-using Application.Scenarios.Commands;
+using Application.Queries;
+
 using Domain.Entities;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
@@ -9,6 +10,13 @@ namespace API.Controllers;
 
 public class IncidentController : BaseApiController
 {
+
+    [HttpGet]
+    
+    public async Task<ActionResult<List<Incident>>> GetQuestions()
+    {
+        return await Mediator.Send(new GetIncidentsList.Query());
+    }
     [HttpPost]
 
     public async Task<ActionResult<string>> CreateIncident(Incident incident)
@@ -25,5 +33,14 @@ public class IncidentController : BaseApiController
         return Ok();
     }
 
-    //[HttpPut]
+    
+
+    [HttpPut("{id}")]
+    public async Task<IActionResult> EditIncident(Guid id, [FromBody] EditIncident.Command command)
+    {
+        command.Id = id;
+
+        await Mediator.Send(command);
+        return NoContent();
+    }
 }
