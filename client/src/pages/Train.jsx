@@ -45,7 +45,21 @@ export default function Train() {
   };
 
   return (
+
+    <>
+      <header className="header">
+        <div className="inner">
+          <b>Incident Response Training</b>
+          <nav style={{display:'flex', gap:12}}>
+            <a className="btn ghost" href="/">Home</a>
+            <a className="btn primary" href="/train">Start træning</a>
+          </nav>
+        </div>
+      </header>
+    
     <div className="container">
+
+      
       <h1>Træning</h1>
 
       <div className="card grid grid-2">
@@ -105,5 +119,6 @@ export default function Train() {
         </article>
       )}
     </div>
+    </>
   );
 }
