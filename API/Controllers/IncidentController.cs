@@ -17,12 +17,23 @@ public class IncidentController : BaseApiController
     {
         return await Mediator.Send(new GetIncidentsList.Query());
     }
-    [HttpPost]
 
-    public async Task<ActionResult<string>> CreateIncident(Incident incident)
+    [HttpGet("{id}")]
+    public async Task<ActionResult<Incident>> GetIncidentDetails(string id)
     {
-        return await Mediator.Send(new CreateIncident.Command { Incident = incident });
+        var incident = await Mediator.Send(new GetIncidentDetails.Query { Id = id });
 
+        if (incident is null)
+            return NotFound();
+
+        return Ok(incident);
+    }
+
+    [HttpPost]
+    public async Task<ActionResult<string>> CreateIncident([FromBody] CreateIncident.Command command)
+    {
+        var incidentId = await Mediator.Send(command);
+        return Ok(incidentId); 
     }
 
     [HttpDelete("{id}")]

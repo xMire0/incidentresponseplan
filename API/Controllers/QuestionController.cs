@@ -16,6 +16,18 @@ public class QuestionController : BaseApiController
         return await Mediator.Send(new GetQuestionList.Query());
     }
 
+    [HttpGet("{id}")]
+
+    public async Task<ActionResult<Question>> GetQuestionDetails(string id)
+    {
+
+        var question = await Mediator.Send(new GetQuestionDetails.Query { Id = id });
+
+        if (question is null)
+            return NotFound();
+
+        return Ok(question);
+    }
 
     [HttpPost]
 
