@@ -1,35 +1,28 @@
-export default function App(){
+// src/App.jsx
+import { Routes, Route, Link } from "react-router-dom";
+import Home from "./pages/Home.jsx";
+import Admin from "./pages/Admin.jsx";   // your new Admin component
+import Login from "./pages/Login.jsx";
+
+export default function App() {
   return (
     <>
       <header className="header">
         <div className="inner">
           <b>Incident Response Training</b>
-          <nav style={{display:'flex', gap:12}}>
-            <a className="btn ghost" href="/">Home</a>
-            <a className="btn primary" href="/train">Start træning</a>
+          <nav style={{ display: "flex", gap: 12 }}>
+            <Link className="btn ghost" to="/">Home</Link>
+            <Link className="btn primary" to="/admin">Admin (test)</Link>
+            <Link className="btn ghost" to="/login">Log in</Link>
           </nav>
         </div>
       </header>
 
-      <div className="container">
-        <h1>Incident Response Plan</h1>
-        <p className="muted">Træn rolle-baserede procedurer, og få målelig feedback og dokumentation.</p>
-
-        <section className="grid grid-3" style={{marginTop: 24}}>
-          <article className="card">
-            <h3>Scenarier</h3>
-            <p className="muted">Vælg et scenarie og gennemfør trinene efter din rolle.</p>
-          </article>
-          <article className="card">
-            <h3>Score & feedback</h3>
-            <p className="muted">Se hvad der manglede, og hvor I kan forbedre processen.</p>
-          </article>
-          <article className="card">
-            <h3>Compliance</h3>
-            <p className="muted">Dokumentér træning og evaluering til audits og læring.</p>
-          </article>
-        </section>
-      </div>
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/admin" element={<Admin />} />
+        <Route path="/login" element={<Login />} />
+      </Routes>
     </>
   );
 }

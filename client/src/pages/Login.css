@@ -1,0 +1,152 @@
+/* --- Theme (tweak to your exact Figma tokens) --- */
+:root {
+  --bg: #0d0f12;              /* page bg around the card */
+  --card: #1e1e1f;            /* card fill */
+  --card-border: #2a2a2a;     /* subtle stroke */
+  --text: #ffffff;            /* main text */
+  --muted: #9da4ae;           /* muted text */
+  --accent: #6b61ff;          /* purple accent (button + underline) */
+  --accent-hover: #5a4dff;    /* button hover */
+  --input-bg: #121314;        /* input fill */
+  --input-stroke: #2f3340;    /* input border default */
+  --input-stroke-focus: #3d46ff; /* focus ring color */
+  --radius-card: 16px;
+  --radius-input: 10px;
+  --radius-btn: 12px;
+  --shadow-card: 0 28px 60px rgba(0,0,0,0.45), 0 10px 24px rgba(0,0,0,0.35);
+}
+
+/* --- Page centering --- */
+.login-screen {
+  min-height: calc(100vh - 72px); /* header is ~72px */
+  background: var(--bg);
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+/* --- Card --- */
+.login-card {
+  width: 400px;
+  max-width: 100%;
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  color: var(--text);
+}
+
+/* --- Header --- */
+.login-header { text-align: center; padding: 28px 32px 0; }
+.login-header h1 {
+  margin: 0;
+  font-size: 28px;
+  line-height: 42px;
+  font-weight: 700;
+}
+.login-accent {
+  width: 64px;
+  height: 3px;
+  background: var(--accent);
+  border-radius: 2px;
+  margin: 12px auto 0;
+}
+
+/* --- Form --- */
+.login-form { padding: 24px 32px 0; display: grid; gap: 12px; }
+
+.login-label {
+  color: #d1d5db;             /* light grey label */
+  font-size: 14px;
+  font-weight: 500;
+  margin-top: 8px;
+}
+
+.input-wrap { position: relative; }
+
+.input {
+  width: 100%;
+  height: 50px;
+  padding: 0 44px 0 14px;     /* leave room for right icon */
+  color: var(--text);
+  background: var(--input-bg);
+  border: 1px solid var(--input-stroke);
+  border-radius: var(--radius-input);
+  outline: none;
+  transition: border-color .2s, box-shadow .2s;
+  caret-color: var(--accent);
+}
+
+.input::placeholder { color: #6b7280; }
+
+.input:focus {
+  border-color: transparent;
+  box-shadow: 0 0 0 2px var(--input-stroke-focus);
+}
+
+/* right-side icon / button */
+.input-icon {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px; height: 20px;
+  color: #8a8f98;
+  display: inline-grid;
+  place-items: center;
+}
+
+.btn-icon {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+.btn-icon:hover { color: #c7cbd2; }
+
+/* --- Error --- */
+.error {
+  color: #f87171;
+  font-size: 13px;
+  margin-top: 2px;
+}
+
+/* --- Primary button --- */
+.btn-primary {
+  margin-top: 6px;
+  width: 100%;
+  height: 48px;
+  border: 0;
+  border-radius: var(--radius-btn);
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background .15s ease;
+}
+.btn-primary:hover { background: var(--accent-hover); }
+.btn-primary:focus { outline: 2px solid var(--input-stroke-focus); outline-offset: 2px; }
+
+/* --- Footer --- */
+.login-footer { padding: 24px 32px 28px; }
+.divider {
+  border: 0; border-top: 1px solid var(--card-border);
+  margin: 0 0 18px 0;
+}
+.note {
+  color: #b3bac4;
+  font-size: 13px;
+  text-align: center;
+  line-height: 1.6;
+  margin: 0 0 18px 0;
+}
+.mini-divider {
+  display: flex; align-items: center; justify-content: center; gap: 16px;
+}
+.mini-divider .line {
+  width: 100px; height: 1px; background: var(--card-border);
+}
+.mini-divider .mini-text {
+  color: #8f96a3; font-size: 12px;
+}

@@ -1,0 +1,98 @@
+/* Theme tokens — juster disse så de matcher 100% din Figma */
+:root{
+  --bg:#0b0f16;              /* side-baggrund */
+  --surface:#141826;         /* topbar + kort */
+  --surface-2:#1b2030;       /* kort hover (svag forskel) */
+  --border:rgba(255,255,255,0.08);
+  --text:#E9EEF5;
+  --muted:#9AA5B1;
+  --shadow:0 18px 40px rgba(0,0,0,.35), 0 8px 18px rgba(0,0,0,.28);
+
+  --brand:#6b61ff;
+  --green-1:#2ecc71; --green-2:#13b36b;
+  --blue-1:#4ea5ff; --blue-2:#246bff;
+  --purple-1:#b06bff; --purple-2:#6b61ff;
+
+  --radius-card:16px;
+  --radius-btn:12px;
+}
+
+/* layout shared */
+.container{max-width:1120px;margin:0 auto;padding:0 24px;}
+.admin-root{background:var(--bg); min-height:100vh; color:var(--text);}
+
+/* Topbar */
+.admin-topbar{background:var(--surface); border-bottom:1px solid var(--border);}
+.admin-topbar-inner{height:64px; display:flex; align-items:center; justify-content:space-between; gap:16px; padding:0 16px 0 20px;}
+.brand{display:flex; align-items:center; gap:10px;}
+.brand-icon{width:28px;height:28px; display:inline-grid; place-items:center;}
+.brand-name{font-weight:700; letter-spacing:.2px;}
+
+.btn-outlined{
+  background:transparent; color:var(--text); border:1px solid var(--border);
+  height:36px; padding:0 12px; border-radius:10px; display:inline-flex; align-items:center; gap:8px;
+  cursor:pointer; transition:background .15s ease, border-color .15s ease;
+}
+.btn-outlined:hover{ background:rgba(255,255,255,.05); border-color:rgba(255,255,255,.18); }
+.icon-left{width:18px;height:18px; display:inline-grid; place-items:center;}
+
+/* Page header */
+.admin-content{padding:28px 0 48px;}
+.page-title{font-size:32px; font-weight:800; margin:0 0 6px;}
+.page-subtitle{color:var(--muted); margin:0 0 22px;}
+
+/* Cards grid */
+.card-grid{
+  display:grid; grid-template-columns:1fr; gap:22px;
+}
+@media (min-width:900px){
+  .card-grid{ grid-template-columns: repeat(3, 1fr); }
+}
+
+.admin-card{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:var(--radius-card);
+  box-shadow:var(--shadow);
+  padding:18px 18px 20px;
+  transition:transform .15s ease, background .15s ease, border-color .15s ease;
+}
+.admin-card:hover{
+  background:var(--surface-2);
+  transform: translateY(-2px);
+  border-color: rgba(255,255,255,.12);
+}
+
+/* Card header row */
+.card-top{display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;}
+.card-icon{width:40px;height:40px; border-radius:10px; color:#fff; display:inline-grid; place-items:center;}
+.card-icon.green{ background:linear-gradient(135deg, #1fb97a, #0ea864); }
+.card-icon.blue{ background:linear-gradient(135deg, #3793ff, #1c6dff); }
+.card-icon.purple{ background:linear-gradient(135deg, #9a63ff, #6b61ff); }
+
+.dot{width:8px;height:8px;border-radius:50%;}
+.dot-green{ background:#16c784; }
+.dot-blue{ background:#3b82f6; }
+.dot-purple{ background:#a78bfa; }
+
+.card-title{font-size:20px; font-weight:700; margin:4px 0 6px;}
+.card-desc{color:var(--muted); margin:0 0 14px; min-height:48px;}
+
+/* Gradient buttons */
+.btn-gradient{
+  width:100%; height:44px; border:0; border-radius:var(--radius-btn);
+  color:#fff; font-weight:600; cursor:pointer;
+  transition: filter .15s ease, transform .05s ease;
+}
+.btn-gradient:active{ transform: translateY(1px); }
+
+.btn-gradient.green{
+  background: linear-gradient(90deg, var(--green-1), var(--green-2));
+}
+.btn-gradient.blue{
+  background: linear-gradient(90deg, var(--blue-1), var(--blue-2));
+}
+.btn-gradient.purple{
+  background: linear-gradient(90deg, var(--purple-1), var(--purple-2));
+}
+.btn-gradient:hover{ filter: brightness(1.05); }
