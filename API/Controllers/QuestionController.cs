@@ -10,11 +10,16 @@ namespace API.Controllers;
 
 public class QuestionController : BaseApiController
 {
+
+    //List of questions
+
     [HttpGet]
     public async Task<ActionResult<List<Question>>> GetQuestions()
     {
         return await Mediator.Send(new GetQuestionList.Query());
     }
+
+    //Specific question
 
     [HttpGet("{id}")]
 

@@ -32,7 +32,6 @@ public class ResponseController : BaseApiController
         return Ok();
     }
 
-    /*
     [HttpPut("{id}")]
     public async Task<IActionResult> EditQuestion(Guid id, [FromBody] EditQuestion.Command command)
     {
@@ -41,6 +40,5 @@ public class ResponseController : BaseApiController
         await Mediator.Send(command);
         return NoContent();
     }
-*/
 
 }
