@@ -14,7 +14,7 @@ public class Question
     public Guid ScenarioId { get; set; }
     public Scenario Scenario { get; set; } = null!;
     public required string Text { get; set; }
-    public required Priority Priority { get; set; }
+    public required Priority Priority { get; set; } //jell
 
     // Many-to-many with roles
     public ICollection<QuestionRole> QuestionRoles { get; set; } = new List<QuestionRole>();
