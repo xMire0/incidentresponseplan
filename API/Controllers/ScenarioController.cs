@@ -11,12 +11,29 @@ namespace API.Controllers;
 public class ScenariosController : BaseApiController
 {
 
+    //List of Scenarios
+
     [HttpGet]
 
     public async Task<ActionResult<List<Scenario>>> GetScenariosList()
     {
         return await Mediator.Send(new GetScenariosList.Query());
     }
+
+    //specific Scenario
+    [HttpGet("{id}")]
+
+    public async Task<ActionResult<Question>> GetQuestionDetails(string id)
+    {
+
+        var question = await Mediator.Send(new GetQuestionDetails.Query { Id = id });
+
+        if (question is null)
+            return NotFound();
+
+        return Ok(question);
+    }
+
     [HttpPost]
 
     public async Task<ActionResult<string>> CreateScenario(Scenario scenario)

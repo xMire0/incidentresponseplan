@@ -11,7 +11,6 @@ public class EditIncident
     public class Command : IRequest
     {
         public Guid Id { get; set; }
-        public Guid ScenarioId { get; set; }
         public IncidentStatus Status { get; set; }
         public DateTime? CompletedAt { get; set; }
     }
@@ -23,7 +22,6 @@ public class EditIncident
             var incident = await context.Incidents.FindAsync([request.Id], cancellationToken)
                            ?? throw new Exception("Incident not found");
 
-            incident.ScenarioId = request.ScenarioId;
             incident.Status = request.Status;
             incident.CompletedAt = request.CompletedAt;
 

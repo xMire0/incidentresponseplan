@@ -6,13 +6,18 @@ using Domain.Enum;
 namespace Domain.Entities;
 
 
-
 public class Question
 {
-    public Guid Id { get; private set; } = Guid.NewGuid();    
-    public required string Text { get; set; }
-    public required Priority Priority { get; set; }
+    public Guid Id { get; private set; } = Guid.NewGuid();
 
-    // Relation: Question ↔ Roles (M:N)
+    // Link to Scenario
+    public Guid ScenarioId { get; set; }
+    public Scenario Scenario { get; set; } = null!;
+    public required string Text { get; set; }
+    public required Priority Priority { get; set; } //jell
+
+    // Many-to-many with roles
     public ICollection<QuestionRole> QuestionRoles { get; set; } = new List<QuestionRole>();
+    public ICollection<AnswerOption> AnswerOptions { get; set; } = new List<AnswerOption>();
+
 }
