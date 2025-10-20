@@ -14,7 +14,7 @@ public class GetAnswerOptionDetails
         public Guid Id { get; set; }
     }
     
-    public class AnswerOptionDetailsDTO 
+    public class AnswerOptionDetailsDTO {}
 
     // Handler
     public class Handler(AppDbContext context) : IRequestHandler<Query, AnswerOption>
