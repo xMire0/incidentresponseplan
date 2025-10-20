@@ -13,6 +13,12 @@ public class AppDbContext(DbContextOptions options) : DbContext(options)
     public DbSet<Response> Responses { get; set; } = null!;
     public DbSet<QuestionRole> QuestionRoles { get; set; } = null!;
 
+    public DbSet<AnswerOption> AnswerOptions { get; set; } = null!;
+    public DbSet<User> Users { get; set; } = null!;
+
+
+
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

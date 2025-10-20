@@ -1,4 +1,5 @@
 using System;
+using System.Text.Json.Serialization;
 
 namespace Domain.Entities;
 
@@ -7,6 +8,7 @@ public class AnswerOption
     public Guid Id { get; private set; } = Guid.NewGuid();
 
     public Guid QuestionId { get; set; }
+
     public Question Question { get; set; } = null!;
 
     public required string Text { get; set; }

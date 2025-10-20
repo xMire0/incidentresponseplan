@@ -18,6 +18,7 @@ public class GetQuestionList
         {
 
             return await context.Questions.ToListAsync(cancellationToken);
+            
         }
 
     }
