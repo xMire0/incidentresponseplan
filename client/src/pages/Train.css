@@ -9,10 +9,19 @@
 
   --rad-card:18px;
   --rad-btn:14px;
+
+  /* verdict colors */
+  --ok:#10b981;        /* correct */
+  --partial:#f59e0b;   /* partial */
+  --bad:#ef4444;       /* wrong */
+  --info:#60a5fa;      /* neutral */
 }
 
 *{box-sizing:border-box}
-.trainX{min-height:100vh; color:var(--text); position:relative; background:radial-gradient(1200px 600px at 70% -10%, #0d1423 0%, #070b12 40%, #05070c 100%);}
+.trainX{
+  min-height:100vh; color:var(--text); position:relative;
+  background:radial-gradient(1200px 600px at 70% -10%, #0d1423 0%, #070b12 40%, #05070c 100%);
+}
 .container{max-width:1160px; margin:0 auto; padding:0 24px}
 
 /* ambient blobs */
@@ -25,7 +34,7 @@
 .glass{background:var(--glass); border:1px solid var(--edge); border-radius:var(--rad-card); box-shadow:var(--shadow)}
 .glass:hover{background:var(--glass-2)}
 
-/* header */
+/* header (no timer) */
 .header{margin:22px 0 16px; padding:12px 16px; display:flex; align-items:center; justify-content:space-between; gap:12px}
 .btn-ghost{
   height:38px; padding:0 14px; border-radius:12px; color:var(--text);
@@ -43,12 +52,13 @@
 .h-sub{margin:0; color:var(--muted); font-size:14px}
 .pill{padding:6px 10px; border-radius:999px; font-size:12px; color:#d7deea; border:1px solid var(--edge); background:rgba(255,255,255,.05); margin-left:auto}
 
-.head-right{display:flex; align-items:center; gap:14px}
-.timer{display:flex; align-items:center; gap:6px; color:#cbd6e6; font-size:14px}
-.score{display:flex; align-items:center; gap:10px}
-.score .bar{position:relative; width:140px; height:10px; border-radius:999px; background:#0c1220; border:1px solid var(--edge); overflow:hidden}
-.score .bar span{position:absolute; inset:0 0 0 0; width:0%}
-.score i{font-size:12px; color:#cbd6e6}
+.head-right{display:flex; align-items:center; gap:10px}
+.head-right .bar{
+  position:relative; width:160px; height:10px; border-radius:999px;
+  background:#0c1220; border:1px solid var(--edge); overflow:hidden
+}
+.head-right .bar span{position:absolute; left:0; top:0; bottom:0; width:0%}
+.head-right i{font-size:12px; color:#cbd6e6}
 
 /* layout */
 .layout{display:grid; grid-template-columns: 280px 1fr; gap:16px; margin-bottom:40px}
@@ -62,6 +72,7 @@
 .outline .dot{width:10px;height:10px;border-radius:50%}
 .o-title{font-weight:700}
 .o-sub{font-size:12px; color:#a6b0bf}
+.o-count{margin-left:auto; font-size:12px; color:#a6b0bf}
 .aside-meta{display:flex; justify-content:space-between; border-top:1px solid var(--edge); padding:10px 0; color:#cbd6e6}
 .result-box{margin-top:10px; border-top:1px solid var(--edge); padding-top:12px}
 .r-title{font-size:12px; color:#cbd6e6}
@@ -77,25 +88,83 @@
 
 /* question */
 .q-card{padding:14px; border:1px solid var(--edge); border-radius:14px; background:rgba(255,255,255,.02); margin-bottom:12px}
-.q-top{display:flex; align-items:flex-start; gap:10px; margin-bottom:8px}
+.q-top{display:flex; align-items:flex-start; gap:10px; margin-bottom:8px; position:relative}
 .q-id{font-weight:800; font-size:12px; color:#cbd6e6; background:rgba(255,255,255,.05); border:1px solid var(--edge); padding:4px 8px; border-radius:999px}
 .q-text{flex:1; font-weight:700}
+.q-badge{position:absolute; right:0; top:0; display:grid; place-items:center; width:26px; height:26px; border-radius:8px; background:rgba(255,255,255,.04); border:1px solid var(--edge)}
+.r-check{color:var(--ok)}
+.r-cross{color:var(--bad)}
+.r-partial{color:var(--partial)}
 
-/* options */
+/* options grid */
 .opts{display:grid; gap:8px; margin-top:6px}
+
+/* option base */
 .opt{
-  display:flex; gap:10px; align-items:flex-start; text-align:left;
-  padding:10px 12px; border-radius:12px; border:1px solid var(--edge);
-  background:#0c1220; color:var(--text); cursor:pointer; transition:all .15s ease;
+  --acc1:#60a5fa;          /* will be overridden inline from JSX */
+  --acc2:#6b61ff;
+
+  display:flex; gap:12px; align-items:flex-start; text-align:left;
+  padding:12px 14px; border-radius:14px; border:1px solid var(--edge);
+  background:#0c1220; color:var(--text);
+  cursor:pointer; transition:all .15s ease, box-shadow .15s ease;
+  position:relative; isolation:isolate;
 }
 .opt:hover{filter:brightness(1.05)}
-.opt.active{outline:2px solid rgba(99,102,241,.55)}
-.opt .opt-bullet{width:10px; height:10px; border-radius:50%; background:#64748b; margin-top:6px}
 
-/* reveal after submit */
+/* animated accent ring on active */
+.opt.active{
+  border-color: transparent;
+  background:
+    linear-gradient(180deg,#0c1220,#0c1220) padding-box,
+    linear-gradient(135deg,var(--acc1),var(--acc2)) border-box;
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,.06) inset,
+    0 10px 28px color-mix(in srgb, var(--acc2) 32%, transparent);
+  outline: none;
+}
+
+/* a soft highlight bar behind active option */
+.opt.active::before{
+  content:"";
+  position:absolute; inset:0; z-index:-1;
+  background:linear-gradient(90deg, color-mix(in srgb,var(--acc1) 16%, transparent), transparent 60%);
+  filter:blur(14px);
+  opacity:.45;
+}
+
+/* keyboard focus */
+.opt:focus-visible{
+  outline:3px solid color-mix(in srgb, var(--acc2) 60%, white 0%);
+  outline-offset:2px;
+}
+
+/* left marker (“radio”) */
+.radio{
+  width:22px; height:22px; border-radius:8px;
+  display:grid; place-items:center; margin-top:0;
+  color:#94a3b8; background:rgba(255,255,255,.04); border:1px solid var(--edge);
+  flex:0 0 auto;
+}
+.r-dot{display:block; width:8px; height:8px; border-radius:50%; background:#64748b}
+
+/* active fills the radio with gradient + check */
+.opt.active .radio{
+  background:linear-gradient(135deg,var(--acc1),var(--acc2));
+  border-color:transparent; color:white;
+  box-shadow:0 6px 18px color-mix(in srgb, var(--acc2) 35%, transparent);
+}
+
+/* text wraps nicely */
+.opt .opt-text{line-height:1.35}
+
+/* verdict styles (after submit) */
 .opt.correct{background:rgba(16,185,129,.13); border-color:rgba(16,185,129,.35)}
-.opt.partial{background:rgba(59,130,246,.10); border-color:rgba(59,130,246,.35)}
-.opt.incorrect{background:rgba(239,68,68,.10); border-color:rgba(239,68,68,.35)}
+.opt.partial{background:rgba(245,158,11,.12); border-color:rgba(245,158,11,.35)}
+.opt.wrong{background:rgba(239,68,68,.12); border-color:rgba(239,68,68,.35)}
+
+/* legacy compatibility if needed */
+.opt.incorrect{background:rgba(239,68,68,.12); border-color:rgba(239,68,68,.35)}
 .opt.none{background:rgba(148,163,184,.10); border-color:rgba(148,163,184,.35)}
 
 .hint{margin-top:8px; font-size:12px; color:#a6b0bf}
