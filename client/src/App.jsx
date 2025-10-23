@@ -5,7 +5,8 @@ import Admin from "./pages/Admin.jsx";
 import Login from "./pages/Login.jsx";
 import Employee from "./pages/Employee.jsx";
 import Train from "./pages/Train.jsx";
-import AdminResults from "./pages/ViewResults.jsx"; // <- your View Results page
+import AdminResults from "./pages/ViewResults.jsx";
+import CreateScenario from "./pages/CreateScenario.jsx";
 
 export default function App() {
   const { pathname } = useLocation();
@@ -35,6 +36,7 @@ export default function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/admin" element={<Admin />} />
         <Route path="/admin/results" element={<AdminResults />} /> {/* <- */}
+        <Route path="/admin/create" element={<CreateScenario />} /> {/* <- */}
         <Route path="/employee" element={<Employee />} />
         <Route path="/train/:id" element={<Train />} />
         <Route path="*" element={<Navigate to="/" replace />} />
