@@ -34,13 +34,15 @@ public class QuestionController : BaseApiController
         return Ok(question);
     }
 
+
+
     [HttpPost]
-
-    public async Task<ActionResult<string>> CreateQuestion(Question question)
+    public async Task<ActionResult<string>> CreateQuestion([FromBody] CreateQuestion.Command command)
     {
-        return await Mediator.Send(new CreateQuestion.Command { Question = question });
-
+        var questionId = await Mediator.Send(command);
+        return Ok(questionId); 
     }
+
 
     [HttpDelete("{id}")]
 
