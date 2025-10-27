@@ -7,12 +7,11 @@ const DIFFICULTIES = ["Beginner", "Intermediate", "Advanced"];
 export default function CreateScenario() {
   const navigate = useNavigate();
 
-  // base form state
+  // base form state (no estimate)
   const [meta, setMeta] = useState({
     title: "",
     difficulty: "Intermediate",
     tags: "",
-    estimate: "15–20 min", // optional
   });
 
   // sections -> questions -> options
@@ -27,7 +26,7 @@ export default function CreateScenario() {
           hint: "",
           options: [
             { id: nid(), text: "", score: 10, kind: "correct" },
-            { id: nid(), text: "", score: 2, kind: "incorrect" },
+            { id: nid(), text: "", score: 2,  kind: "incorrect" },
           ],
         },
       ],
@@ -38,23 +37,23 @@ export default function CreateScenario() {
   const issues = useMemo(() => validate(meta, sections), [meta, sections]);
 
   const addSection = () => {
-    setSections((s) => [
+    setSections(s => [
       ...s,
       { id: nid(), title: `Section ${s.length + 1}`, questions: [] },
     ]);
   };
 
   const removeSection = (sid) => {
-    setSections((s) => s.filter((x) => x.id !== sid));
+    setSections(s => s.filter(x => x.id !== sid));
   };
 
   const updateSection = (sid, patch) => {
-    setSections((s) => s.map((sec) => (sec.id === sid ? { ...sec, ...patch } : sec)));
+    setSections(s => s.map(sec => (sec.id === sid ? { ...sec, ...patch } : sec)));
   };
 
   const addQuestion = (sid) => {
-    setSections((s) =>
-      s.map((sec) => {
+    setSections(s =>
+      s.map(sec => {
         if (sec.id !== sid) return sec;
         return {
           ...sec,
@@ -66,7 +65,7 @@ export default function CreateScenario() {
               hint: "",
               options: [
                 { id: nid(), text: "", score: 10, kind: "correct" },
-                { id: nid(), text: "", score: 2, kind: "incorrect" },
+                { id: nid(), text: "", score: 2,  kind: "incorrect" },
               ],
             },
           ],
@@ -76,40 +75,37 @@ export default function CreateScenario() {
   };
 
   const removeQuestion = (sid, qid) => {
-    setSections((s) =>
-      s.map((sec) => {
+    setSections(s =>
+      s.map(sec => {
         if (sec.id !== sid) return sec;
-        return { ...sec, questions: sec.questions.filter((q) => q.id !== qid) };
+        return { ...sec, questions: sec.questions.filter(q => q.id !== qid) };
       })
     );
   };
 
   const updateQuestion = (sid, qid, patch) => {
-    setSections((s) =>
-      s.map((sec) => {
+    setSections(s =>
+      s.map(sec => {
         if (sec.id !== sid) return sec;
         return {
           ...sec,
-          questions: sec.questions.map((q) => (q.id === qid ? { ...q, ...patch } : q)),
+          questions: sec.questions.map(q => (q.id === qid ? { ...q, ...patch } : q)),
         };
       })
     );
   };
 
   const addOption = (sid, qid) => {
-    setSections((s) =>
-      s.map((sec) => {
+    setSections(s =>
+      s.map(sec => {
         if (sec.id !== sid) return sec;
         return {
           ...sec,
-          questions: sec.questions.map((q) => {
+          questions: sec.questions.map(q => {
             if (q.id !== qid) return q;
             return {
               ...q,
-              options: [
-                ...q.options,
-                { id: nid(), text: "", score: 0, kind: "incorrect" },
-              ],
+              options: [...q.options, { id: nid(), text: "", score: 0, kind: "incorrect" }],
             };
           }),
         };
@@ -118,47 +114,44 @@ export default function CreateScenario() {
   };
 
   const removeOption = (sid, qid, oid) => {
-    setSections((s) =>
-      s.map((sec) => {
+    setSections(s =>
+      s.map(sec => {
         if (sec.id !== sid) return sec;
         return {
           ...sec,
-          questions: sec.questions.map((q) => {
+          questions: sec.questions.map(q => {
             if (q.id !== qid) return q;
-            return { ...q, options: q.options.filter((o) => o.id !== oid) };
+            return { ...q, options: q.options.filter(o => o.id !== oid) };
           }),
         };
       })
     );
   };
 
-  // If Kind dropdown is changed to "correct", make it the sole correct.
-  // If changed away from "correct", just update kind. This keeps "one correct" rule consistent.
+  // If Kind is changed to "correct", make it the sole correct for that question.
   const updateOption = (sid, qid, oid, patch) => {
-    setSections((s) =>
-      s.map((sec) => {
+    setSections(s =>
+      s.map(sec => {
         if (sec.id !== sid) return sec;
         return {
           ...sec,
-          questions: sec.questions.map((q) => {
+          questions: sec.questions.map(q => {
             if (q.id !== qid) return q;
 
             if (patch.kind === "correct") {
               return {
                 ...q,
-                options: q.options.map((o) =>
+                options: q.options.map(o =>
                   o.id === oid
                     ? { ...o, ...patch, score: Math.max(10, Number(patch.score ?? o.score) || 10) }
                     : { ...o, kind: o.kind === "correct" ? "incorrect" : o.kind }
                 ),
               };
             }
-            // normal patch
+
             return {
               ...q,
-              options: q.options.map((o) =>
-                o.id === oid ? { ...o, ...patch } : o
-              ),
+              options: q.options.map(o => (o.id === oid ? { ...o, ...patch } : o)),
             };
           }),
         };
@@ -166,18 +159,18 @@ export default function CreateScenario() {
     );
   };
 
-  // quick button to mark only one as correct
+  // Quick button to mark one as correct
   const markCorrect = (sid, qid, oid) => {
-    setSections((s) =>
-      s.map((sec) => {
+    setSections(s =>
+      s.map(sec => {
         if (sec.id !== sid) return sec;
         return {
           ...sec,
-          questions: sec.questions.map((q) => {
+          questions: sec.questions.map(q => {
             if (q.id !== qid) return q;
             return {
               ...q,
-              options: q.options.map((o) =>
+              options: q.options.map(o =>
                 o.id === oid
                   ? { ...o, kind: "correct", score: Math.max(10, o.score) }
                   : { ...o, kind: o.kind === "correct" ? "incorrect" : o.kind }
@@ -192,7 +185,7 @@ export default function CreateScenario() {
   const payload = useMemo(() => {
     const tags = meta.tags
       .split(",")
-      .map((t) => t.trim())
+      .map(t => t.trim())
       .filter(Boolean);
 
     // compute max score (highest option per question)
@@ -200,7 +193,7 @@ export default function CreateScenario() {
       (sum, sec) =>
         sum +
         sec.questions.reduce((ss, q) => {
-          const best = Math.max(0, ...q.options.map((o) => Number(o.score) || 0));
+          const best = Math.max(0, ...q.options.map(o => Number(o.score) || 0));
           return ss + best;
         }, 0),
       0
@@ -210,7 +203,6 @@ export default function CreateScenario() {
       title: meta.title.trim(),
       difficulty: meta.difficulty,
       tags,
-      est: (meta.estimate || "").trim() || undefined, // optional
       sections,
       maxScore,
     };
@@ -220,7 +212,7 @@ export default function CreateScenario() {
 
   const save = async () => {
     if (issues.length) return;
-    // TODO: swap with POST /api/scenarios
+    // TODO: swap with real POST /api/scenarios
     console.log("CREATE_SCENARIO_PAYLOAD", payload);
     setFlash({ type: "ok", text: "Scenario saved!" });
     setTimeout(() => navigate("/admin"), 600);
@@ -274,41 +266,33 @@ export default function CreateScenario() {
               <input
                 className="input"
                 value={meta.title}
-                onChange={(e) => setMeta((m) => ({ ...m, title: e.target.value }))}
+                onChange={e => setMeta(m => ({ ...m, title: e.target.value }))}
                 placeholder="e.g., Ransomware Detected"
               />
             </div>
 
-            <div className="form-row two">
-              <div>
-                <label>Difficulty</label>
-                <select
-                  className="input"
-                  value={meta.difficulty}
-                  onChange={(e) => setMeta((m) => ({ ...m, difficulty: e.target.value }))}
-                >
-                  {DIFFICULTIES.map((d) => (
-                    <option key={d}>{d}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label>Estimated time <span className="muted">(optional)</span></label>
-                <input
-                  className="input"
-                  value={meta.estimate}
-                  onChange={(e) => setMeta((m) => ({ ...m, estimate: e.target.value }))}
-                  placeholder="e.g., 15–20 min"
-                />
-              </div>
+            {/* Difficulty — full width */}
+            <div className="form-row">
+              <label>Difficulty</label>
+              <select
+                className="input"
+                value={meta.difficulty}
+                onChange={e => setMeta(m => ({ ...m, difficulty: e.target.value }))}
+              >
+                {DIFFICULTIES.map(d => (
+                  <option key={d}>{d}</option>
+                ))}
+              </select>
             </div>
 
             <div className="form-row">
-              <label>Tags <span className="muted">(comma separated)</span></label>
+              <label>
+                Tags <span className="muted">(comma separated)</span>
+              </label>
               <input
                 className="input"
                 value={meta.tags}
-                onChange={(e) => setMeta((m) => ({ ...m, tags: e.target.value }))}
+                onChange={e => setMeta(m => ({ ...m, tags: e.target.value }))}
                 placeholder="Security, IR"
               />
             </div>
@@ -328,7 +312,7 @@ export default function CreateScenario() {
                   <input
                     className="input section-title"
                     value={sec.title}
-                    onChange={(e) => updateSection(sec.id, { title: e.target.value })}
+                    onChange={e => updateSection(sec.id, { title: e.target.value })}
                     placeholder={`Section ${si + 1} title`}
                   />
                   <div className="row gap">
@@ -363,17 +347,19 @@ export default function CreateScenario() {
                         className="input"
                         rows={2}
                         value={q.text}
-                        onChange={(e) => updateQuestion(sec.id, q.id, { text: e.target.value })}
+                        onChange={e => updateQuestion(sec.id, q.id, { text: e.target.value })}
                         placeholder="Write the question…"
                       />
                     </div>
 
                     <div className="form-row">
-                      <label>Hint <span className="muted">(optional)</span></label>
+                      <label>
+                        Hint <span className="muted">(optional)</span>
+                      </label>
                       <input
                         className="input"
                         value={q.hint || ""}
-                        onChange={(e) => updateQuestion(sec.id, q.id, { hint: e.target.value })}
+                        onChange={e => updateQuestion(sec.id, q.id, { hint: e.target.value })}
                         placeholder="Helpful hint"
                       />
                     </div>
@@ -389,21 +375,27 @@ export default function CreateScenario() {
                       {q.options.map((o, oi) => (
                         <div className={`opt-row status-${o.kind}`} key={o.id}>
                           <button
-                            className={`opt-check ${o.kind === "correct" ? "is-correct" : ""}`}
-                            onClick={() => markCorrect(sec.id, q.id, o.id)}
-                            title="Mark as the correct answer"
                             type="button"
-                            aria-pressed={o.kind === "correct"}
+                            className={`opt-check ${o.kind}`}
+                            onClick={() => markCorrect(sec.id, q.id, o.id)}
+                            title={
+                              o.kind === "correct"
+                                ? "This is the correct answer"
+                                : "Mark as correct"
+                            }
+                            aria-label={
+                              o.kind === "correct"
+                                ? "Correct answer"
+                                : "Mark option as correct"
+                            }
                           >
-                            ✓
+                            {o.kind === "correct" ? "✓" : o.kind === "partial" ? "~" : "×"}
                           </button>
 
                           <input
                             className="input"
                             value={o.text}
-                            onChange={(e) =>
-                              updateOption(sec.id, q.id, o.id, { text: e.target.value })
-                            }
+                            onChange={e => updateOption(sec.id, q.id, o.id, { text: e.target.value })}
                             placeholder={`Option ${oi + 1} text`}
                           />
 
@@ -413,7 +405,7 @@ export default function CreateScenario() {
                             min="0"
                             step="1"
                             value={o.score}
-                            onChange={(e) =>
+                            onChange={e =>
                               updateOption(sec.id, q.id, o.id, { score: Number(e.target.value) })
                             }
                             title="Score"
@@ -422,9 +414,7 @@ export default function CreateScenario() {
                           <select
                             className="input kind"
                             value={o.kind}
-                            onChange={(e) =>
-                              updateOption(sec.id, q.id, o.id, { kind: e.target.value })
-                            }
+                            onChange={e => updateOption(sec.id, q.id, o.id, { kind: e.target.value })}
                             title="Kind"
                           >
                             <option value="correct">correct</option>
@@ -472,14 +462,14 @@ export default function CreateScenario() {
               </div>
 
               <h4 className="p-title">{meta.title || "Untitled scenario"}</h4>
-              <p className="p-sub">
-                {(meta.tags || "Tags…")}{meta.tags ? "" : ""} {meta.estimate ? "• " + meta.estimate : ""}
-              </p>
+              {meta.tags ? (
+                <p className="p-sub">{meta.tags}</p>
+              ) : (
+                <p className="p-sub">Tags…</p>
+              )}
 
               <div className="p-meta">
-                <span>
-                  {sections.length} section{sections.length !== 1 ? "s" : ""}
-                </span>
+                <span>{sections.length} section{sections.length !== 1 ? "s" : ""}</span>
                 <span>
                   {sections.reduce((n, s) => n + s.questions.length, 0)} question
                   {sections.reduce((n, s) => n + s.questions.length, 0) !== 1 ? "s" : ""}
@@ -513,7 +503,7 @@ function validate(meta, sections) {
     s.questions.forEach((q, qi) => {
       if (!q.text.trim()) out.push(`Q${qi + 1} in section ${si + 1}: question text is required.`);
       if (!q.options.length) out.push(`Q${qi + 1} in section ${si + 1}: add at least one option.`);
-      const hasCorrect = q.options.some((o) => o.kind === "correct");
+      const hasCorrect = q.options.some(o => o.kind === "correct");
       if (!hasCorrect) out.push(`Q${qi + 1} in section ${si + 1}: mark one option as correct.`);
     });
   });

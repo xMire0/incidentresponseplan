@@ -1,21 +1,24 @@
 // src/App.jsx
-import { Routes, Route, Link, useLocation, Navigate } from "react-router-dom";
-import Home from "./pages/Home.jsx";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import Admin from "./pages/Admin.jsx";
 import Login from "./pages/Login.jsx";
 import Employee from "./pages/Employee.jsx";
 import Train from "./pages/Train.jsx";
 import AdminResults from "./pages/ViewResults.jsx";
 import CreateScenario from "./pages/CreateScenario.jsx";
+import GenerateReport from "./pages/GenerateReport.jsx";
+import ViewScenario from "./pages/ViewScenario.jsx";
 
 export default function App() {
   const { pathname } = useLocation();
 
+  // We hide the generic public header everywhere since each page has its own topbar.
   const hidePublicHeader =
-    pathname.startsWith("/admin") ||   // hide on all admin pages
+    pathname.startsWith("/admin") ||
+    pathname.startsWith("/train/") ||
     pathname === "/login" ||
     pathname === "/employee" ||
-    pathname.startsWith("/train/");
+    pathname === "/";
 
   return (
     <>
@@ -23,23 +26,25 @@ export default function App() {
         <header className="header">
           <div className="inner">
             <b>Incident Response Training</b>
-            <nav style={{ display: "flex", gap: 12 }}>
-              <Link className="btn ghost" to="/">Home</Link>
-              <Link className="btn primary" to="/login">Log in</Link>
-            </nav>
           </div>
         </header>
       )}
 
       <Routes>
-        <Route path="/" element={<Home />} />
+        {/* Default landing → Login */}
+        <Route path="/" element={<Navigate to="/login" replace />} />
+
         <Route path="/login" element={<Login />} />
         <Route path="/admin" element={<Admin />} />
-        <Route path="/admin/results" element={<AdminResults />} /> {/* <- */}
-        <Route path="/admin/create" element={<CreateScenario />} /> {/* <- */}
+        <Route path="/admin/results" element={<AdminResults />} />
+        <Route path="/admin/create" element={<CreateScenario />} />
         <Route path="/employee" element={<Employee />} />
         <Route path="/train/:id" element={<Train />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="/admin/reports" element={<GenerateReport />} />
+        <Route path="/admin/scenarios" element={<ViewScenario />} />
+
+        {/* Fallback → Login */}
+        <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </>
   );
