@@ -1,5 +1,5 @@
 /* === Theme tokens — matches Figma colors === */
-:root {
+.admin-root {
   --bg: #0b0f16;              /* page background */
   --surface: #141826;         /* topbar + card */
   --surface-2: #1b2030;       /* subtle hover surface */

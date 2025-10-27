@@ -3,6 +3,8 @@ import { useAuth } from "../auth/AuthContext";
 import { useNavigate } from "react-router-dom";
 import "./admin.css";
 
+
+
 export default function Admin() {
   const { logout } = useAuth();
   const navigate = useNavigate();
@@ -66,7 +68,9 @@ export default function Admin() {
               Create new test scenarios and configure parameters for your simulations
             </p>
 
-            <button className="btn-gradient green">Start creation</button>
+            <button className="btn-gradient green" onClick={() => navigate("/admin/create")}>
+            Start creation
+            </button>
           </article>
 
           {/* View Results */}
@@ -86,7 +90,10 @@ export default function Admin() {
               Review and analyze results from your completed test scenarios
             </p>
 
-            <button className="btn-gradient blue">Open results</button>
+          
+            <button className="btn-gradient blue" onClick={()=>navigate("/admin/results")}>
+            Open results
+          </button>
           </article>
 
           {/* Generate Reports */}

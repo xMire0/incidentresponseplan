@@ -4,19 +4,22 @@ import Home from "./pages/Home.jsx";
 import Admin from "./pages/Admin.jsx";
 import Login from "./pages/Login.jsx";
 import Employee from "./pages/Employee.jsx";
-import Train from "./pages/Train.jsx"; // ← test runner page
+import Train from "./pages/Train.jsx";
+import AdminResults from "./pages/ViewResults.jsx";
+import CreateScenario from "./pages/CreateScenario.jsx";
 
 export default function App() {
-  const location = useLocation();
+  const { pathname } = useLocation();
 
-  // Hide the global header on these routes so the page-specific topbars shine
-  const hideHeaderOn = ["/login", "/admin", "/employee"];
-  const isTrain = location.pathname.startsWith("/train/"); // also hide on the runner
-  const showHeader = !hideHeaderOn.includes(location.pathname) && !isTrain;
+  const hidePublicHeader =
+    pathname.startsWith("/admin") ||   // hide on all admin pages
+    pathname === "/login" ||
+    pathname === "/employee" ||
+    pathname.startsWith("/train/");
 
   return (
     <>
-      {showHeader && (
+      {!hidePublicHeader && (
         <header className="header">
           <div className="inner">
             <b>Incident Response Training</b>
@@ -32,10 +35,10 @@ export default function App() {
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
         <Route path="/admin" element={<Admin />} />
+        <Route path="/admin/results" element={<AdminResults />} /> {/* <- */}
+        <Route path="/admin/create" element={<CreateScenario />} /> {/* <- */}
         <Route path="/employee" element={<Employee />} />
         <Route path="/train/:id" element={<Train />} />
-
-        {/* catch-all → Home */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </>
