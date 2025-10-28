@@ -82,6 +82,7 @@ textarea.input{height:auto;line-height:1.45;padding-top:10px;padding-bottom:10px
   gap:10px;align-items:center;background:#0f1422;border:1px solid var(--edge);
   border-radius:12px;padding:8px 8px;margin-bottom:8px;
 }
+.opt-row > *{min-width:0}            /* allow shrink inside grid */
 
 .opt-check{
   width:34px;height:34px;border-radius:10px;border:1px solid var(--edge);
@@ -123,3 +124,98 @@ textarea.input{height:auto;line-height:1.45;padding-top:10px;padding-bottom:10px
 .flash.ok{background:rgba(22,199,132,.12);border:1px solid rgba(22,199,132,.45)}
 .muted{color:var(--muted)}
 .row.gap{display:flex;gap:10px}
+
+/* --- Question Bank: controls, pills, and compact/wrap behaviors --- */
+
+/* Top controls row in the right preview column */
+.bank-controls{
+  display:flex; align-items:center; gap:10px; margin:0 0 10px;
+}
+.bank-select{ flex:1; height:36px; }
+.toggle-wrap{ display:flex; gap:8px; }
+.toggle-wrap .btn-ghost{ height:36px; padding:0 10px; border-radius:10px; }
+.toggle-wrap .btn-ghost.is-active{
+  border-color: rgba(107,97,255,.55);
+  box-shadow: 0 0 0 2px rgba(107,97,255,.18) inset;
+}
+
+/* Preview card typography */
+.preview-card .q-title{ margin:0 0 6px; font-size:16px; font-weight:700; color:var(--text); }
+.preview-card .hint{ color:var(--muted); margin:0 0 10px; }
+.preview-card .opts-title{ margin:0 0 8px; font-weight:600; color:#cdd3df; font-size:14px; }
+
+/* Options list wrapper */
+.preview-card .options-list{ display:flex; flex-direction:column; gap:8px; }
+
+.drawer .opt-row{
+  display:grid;
+  grid-template-columns: 40px 1fr 60px 90px; /* icon | text | score | verdict */
+  gap:8px;
+  align-items:center;
+  background:rgba(15,20,34,.8);
+  border:1px solid var(--edge);
+  border-radius:12px;
+  padding:8px 10px;
+  margin-bottom:8px;
+  font-size:14px;
+}
+.drawer .opt-row > *{ min-width:0; }
+
+/* Keep pills centered and inside bounds */
+.drawer .opt-row .pill-score,
+.drawer .opt-row .pill-verdict{
+  justify-self:center;
+  text-align:center;
+}
+
+/* Make the verdict column slightly tighter and center its text vertically */
+.pill-verdict{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:4px 8px;
+  font-weight:600;
+}
+
+/* Icon cell */
+.drawer .opt-row .opt-check{ flex-shrink:0; }
+
+/* Text cell */
+.opt-text{
+  min-width:0;
+  white-space:normal;
+  overflow-wrap:anywhere;
+  word-break:normal;
+}
+
+/* Compact vs wrapped toggle */
+.preview-card.is-compact .opt-text{
+  display:-webkit-box;
+  -webkit-line-clamp:2;
+  -webkit-box-orient:vertical;
+  overflow:hidden;
+}
+.preview-card.is-wrapped .opt-text{ display:block; }
+
+/* Pills */
+.pill{
+  padding:6px 10px; border-radius:999px; font-size:12px; color:#d7deea;
+  border:1px solid var(--edge); background:rgba(255,255,255,.05);
+}
+.pill-score{ min-width:40px; text-align:center; font-weight:700; }
+.pill-verdict{ text-transform:capitalize; text-align:center; }
+.pill-verdict.correct{ background:rgba(22,199,132,.16); border-color:rgba(22,199,132,.45); color:#d7ffe9; }
+.pill-verdict.partial{ background:rgba(245,158,11,.14); border-color:rgba(245,158,11,.45); color:#fff1d0; }
+.pill-verdict.incorrect{ background:rgba(239,68,68,.10); border-color:rgba(239,68,68,.38); color:#ffe0e0; }
+.pill-verdict.none{ background:rgba(148,163,184,.10); border-color:rgba(148,163,184,.32); color:#e9eef5; }
+
+/* Center pills inside their columns (so they don’t drift to the far right edge) */
+.drawer .opt-row .pill-score,
+.drawer .opt-row .pill-verdict{
+  justify-self:center;
+}
+
+/* If an "input" class is reused in preview rows, strip input chrome */
+.drawer .opt-row .input{
+  border:0; background:transparent; height:auto; padding:0; box-shadow:none; color:var(--text);
+}

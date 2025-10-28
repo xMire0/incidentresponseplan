@@ -120,14 +120,21 @@ const IconTilde = () => (
   </svg>
 );
 
+/* ---------- helpers for multi-select ---------- */
+const getCorrectIds = (q) => q.options.filter(o => o.kind === "correct").map(o => o.id);
+const selectionLimit = (q) => Math.max(1, getCorrectIds(q).length);
+const arr = (v) => Array.isArray(v) ? v : (v ? [v] : []);
+
 export default function Train(){
   const { id } = useParams();
   const navigate = useNavigate();
-  const { logout } = useAuth(); // available if you add a top-right menu
+  const { logout } = useAuth(); // (unused here but available)
 
   const [loading, setLoading] = useState(true);
   const [sc, setSc] = useState(null);
-  const [answers, setAnswers] = useState({});      // { qid: optionId }
+
+  // answers: { [qid]: string[] }  (multi-select)
+  const [answers, setAnswers] = useState({});
   const [submitted, setSubmitted] = useState(false);
 
   useEffect(()=>{
@@ -142,23 +149,56 @@ export default function Train(){
     allQs.reduce((sum,q)=>sum+Math.max(...q.options.map(o=>o.score)),0)
   ,[allQs]);
 
+  // sum of scores of all selected options
   const score = useMemo(() =>
     allQs.reduce((sum,q)=>{
-      const pick = answers[q.id];
-      if(!pick) return sum;
-      const op = q.options.find(o=>o.id===pick);
-      return sum + (op?.score ?? 0);
+      const picks = arr(answers[q.id]);
+      if (!picks.length) return sum;
+      const pickedOptions = q.options.filter(o => picks.includes(o.id));
+      return sum + pickedOptions.reduce((s,o)=>s + (o.score ?? 0), 0);
     },0)
   ,[answers, allQs]);
 
-  const answeredCount = Object.keys(answers).length;
+  const answeredCount = useMemo(
+    () => allQs.filter(q => arr(answers[q.id]).length > 0).length,
+    [answers, allQs]
+  );
 
-  // NEW: progress vs score logic
+  // progress vs score logic
   const progressPct = allQs.length ? Math.round((answeredCount / allQs.length) * 100) : 0;
   const scorePct    = maxScore ? Math.round((score / maxScore) * 100) : 0;
   const gaugePct    = submitted ? scorePct : progressPct;
 
-  const select = (qid, oid) => { if(!submitted) setAnswers(a => ({...a, [qid]: oid})); };
+  // selection: toggle with cap = #correct (min 1)
+  const select = (qid, oid) => {
+    if (submitted) return;
+    setAnswers(prev => {
+      const cur = arr(prev[qid]);
+      const q   = allQs.find(x => x.id === qid);
+      const cap = selectionLimit(q);
+
+      // already selected -> unselect
+      if (cur.includes(oid)) {
+        const next = cur.filter(id => id !== oid);
+        return { ...prev, [qid]: next };
+      }
+
+      // single-select (cap=1) -> replace
+      if (cap === 1) {
+        return { ...prev, [qid]: [oid] };
+      }
+
+      // multi-select
+      if (cur.length < cap) {
+        return { ...prev, [qid]: [...cur, oid] };
+      }
+
+      // at cap already: replace earliest selected with new (keeps UX simple)
+      const next = [...cur.slice(1), oid];
+      return { ...prev, [qid]: next };
+    });
+  };
+
   const submit = () => { setSubmitted(true); window.scrollTo({ top: 0, behavior: "smooth" }); };
   const restart = () => { setAnswers({}); setSubmitted(false); };
 
@@ -180,13 +220,22 @@ export default function Train(){
   }
   if (!sc) return null;
 
-  // helpers for verdict & per-question badge after submit
+  // verdict for a question after submit (correct/partial/incorrect/none)
   const verdictFor = (q) => {
     if (!submitted) return null;
-    const chosen = q.options.find(o => o.id === answers[q.id]);
-    if (!chosen) return null;
-    return chosen.kind; // "correct" | "partial" | "incorrect" | "none"
+    const picks = arr(answers[q.id]);
+    if (!picks.length) return "none";
+
+    const correctIds = new Set(getCorrectIds(q));
+    const pickedSet  = new Set(picks);
+    const pickedCorrectCount = picks.filter(id => correctIds.has(id)).length;
+    const pickedIncorrect    = picks.some(id => !correctIds.has(id));
+
+    if (pickedCorrectCount === correctIds.size && !pickedIncorrect) return "correct";
+    if (pickedCorrectCount > 0) return "partial";
+    return "incorrect";
   };
+
   const badgeIcon = (kind) => {
     if (kind === "correct") return <IconCheck/>;
     if (kind === "partial") return <IconTilde/>;
@@ -240,7 +289,7 @@ export default function Train(){
             <h3 className="aside-title">Outline</h3>
             <ol className="outline">
               {sc.sections.map((sec) => {
-                const done = sec.questions.filter(q => answers[q.id]).length;
+                const done = sec.questions.filter(q => arr(answers[q.id]).length).length;
                 return (
                   <li key={sec.id}>
                     <span className="dot" style={{background:sc.color.to}}/>
@@ -295,18 +344,28 @@ export default function Train(){
                 </div>
 
                 {sec.questions.map((q, idx)=> {
-                  const v = verdictFor(q); // null | "correct" | "partial" | "incorrect" | "none"
+                  const v = verdictFor(q); // "correct" | "partial" | "incorrect" | "none" | null
+                  const cap = selectionLimit(q);
+                  const selected = new Set(arr(answers[q.id]));
+                  const questionIndex = idx + (si === 0 ? 0 : sc.sections[0].questions.length);
+
                   return (
                     <article key={q.id} className="q-card">
                       <div className="q-top">
-                        <div className="q-id">Q{idx + 1 + (si === 0 ? 0 : sc.sections[0].questions.length)}</div>
+                        <div className="q-id">Q{questionIndex + 1}</div>
                         <div className="q-text">{q.text}</div>
                         <div className="q-badge">{badgeIcon(v)}</div>
                       </div>
 
+                      {!submitted && (
+                        <div className="q-cap muted" style={{marginBottom:8}}>
+                          Select up to <b>{cap}</b> answer{cap>1?"s":""}.
+                        </div>
+                      )}
+
                       <div className="opts">
                         {q.options.map((op)=>{
-                          const chosen = answers[q.id] === op.id;
+                          const chosen = selected.has(op.id);
 
                           // after submit, show truth-state colors
                           const postClass = submitted
@@ -342,7 +401,9 @@ export default function Train(){
                         <div className="post">
                           <span className="tag">
                             Your score for this question:&nbsp;
-                            {q.options.find(o=>o.id===answers[q.id])?.score ?? 0}
+                            {q.options
+                              .filter(o=>arr(answers[q.id]).includes(o.id))
+                              .reduce((s,o)=>s+(o.score??0),0)}
                           </span>
                         </div>
                       )}
