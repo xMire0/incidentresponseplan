@@ -73,7 +73,7 @@ export default function ViewScenario() {
         <div className="filters">
           <input
             className="input"
-            placeholder="Search scenario or tag…"
+            placeholder="Search scenario…"
             value={query}
             onChange={e=>setQuery(e.target.value)}
           />
