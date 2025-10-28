@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "./CreateScenario.css";
 
-const DIFFICULTIES = ["Beginner", "Intermediate", "Advanced"];
+const RISK = ["Beginner", "Intermediate", "Advanced"];
 
 export default function CreateScenario() {
   const navigate = useNavigate();
@@ -10,8 +10,8 @@ export default function CreateScenario() {
   // base form state (no estimate)
   const [meta, setMeta] = useState({
     title: "",
-    difficulty: "Intermediate",
-    tags: "",
+    risk: "Intermediate",
+    description: "",
   });
 
   // sections -> questions -> options
@@ -183,10 +183,8 @@ export default function CreateScenario() {
   };
 
   const payload = useMemo(() => {
-    const tags = meta.tags
-      .split(",")
-      .map(t => t.trim())
-      .filter(Boolean);
+    const description = meta.description.trim();
+
 
     // compute max score (highest option per question)
     const maxScore = sections.reduce(
@@ -201,8 +199,8 @@ export default function CreateScenario() {
 
     return {
       title: meta.title.trim(),
-      difficulty: meta.difficulty,
-      tags,
+      risk: meta.risk,
+      description,
       sections,
       maxScore,
     };
@@ -271,31 +269,30 @@ export default function CreateScenario() {
               />
             </div>
 
-            {/* Difficulty — full width */}
+            {/* Risk — full width */}
             <div className="form-row">
-              <label>Difficulty</label>
+              <label>Risk</label>
               <select
                 className="input"
-                value={meta.difficulty}
-                onChange={e => setMeta(m => ({ ...m, difficulty: e.target.value }))}
+                value={meta.risk}
+                onChange={e => setMeta(m => ({ ...m, risk: e.target.value }))}
               >
-                {DIFFICULTIES.map(d => (
+                {RISK.map(d => (
                   <option key={d}>{d}</option>
                 ))}
               </select>
             </div>
 
             <div className="form-row">
-              <label>
-                Tags <span className="muted">(comma separated)</span>
-              </label>
-              <input
-                className="input"
-                value={meta.tags}
-                onChange={e => setMeta(m => ({ ...m, tags: e.target.value }))}
-                placeholder="Security, IR"
-              />
-            </div>
+  <label>Description <span className="muted"></span></label>
+  <textarea
+    className="input"
+    rows={3}
+    value={meta.description}
+    onChange={(e) => setMeta((m) => ({ ...m, description: e.target.value }))}
+    placeholder="Write a short description of the scenario..."
+  />
+</div>
 
             <div className="sep" />
 
@@ -458,7 +455,7 @@ export default function CreateScenario() {
                     <path d="M9 9h6v6H9z" stroke="#6b61ff" strokeWidth="1.6" fill="none" />
                   </svg>
                 </span>
-                <span className="pill">{meta.difficulty}</span>
+                <span className="pill">{meta.risk}</span>
               </div>
 
               <h4 className="p-title">{meta.title || "Untitled scenario"}</h4>
