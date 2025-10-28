@@ -8,6 +8,8 @@ import AdminResults from "./pages/ViewResults.jsx";
 import CreateScenario from "./pages/CreateScenario.jsx";
 import GenerateReport from "./pages/GenerateReport.jsx";
 import ViewScenario from "./pages/ViewScenario.jsx";
+import ViewSpecificScenario from "./pages/ViewSpecificScenario.jsx";
+
 
 export default function App() {
   const { pathname } = useLocation();
@@ -42,6 +44,8 @@ export default function App() {
         <Route path="/train/:id" element={<Train />} />
         <Route path="/admin/reports" element={<GenerateReport />} />
         <Route path="/admin/scenarios" element={<ViewScenario />} />
+        <Route path="/admin/scenario/:id" element={<ViewSpecificScenario />} />
+
 
         {/* Fallback → Login */}
         <Route path="*" element={<Navigate to="/login" replace />} />
