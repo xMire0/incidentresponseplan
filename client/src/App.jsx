@@ -44,6 +44,7 @@ export default function App() {
         <Route path="/train/:id" element={<Train />} />
         <Route path="/admin/reports" element={<GenerateReport />} />
         <Route path="/admin/scenarios" element={<ViewScenario />} />
+        <Route path="/admin/scenario/create" element={<CreateScenario />} />
         <Route path="/admin/scenario/:id" element={<ViewSpecificScenario />} />
 
 

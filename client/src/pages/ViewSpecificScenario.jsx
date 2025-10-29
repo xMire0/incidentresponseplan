@@ -1,120 +1,198 @@
-// src/pages/ViewSpecificScenario.jsx
-import { useNavigate, useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import "./ViewSpecificScenario.css";
 
-export default function ViewSpecificScenario(){
+const mockScenarios = [
+  {
+    id: "scn-001",
+    title: "Ransomware Detected",
+    risk: "Medium",
+    description: "Simulates a ransomware incident in a corporate environment.",
+    questions: [
+      {
+        id: "q1",
+        text: "What is your first action when detecting ransomware activity?",
+        options: [
+          { id: "a", text: "Disconnect affected servers from the network.", kind: "correct" },
+          { id: "b", text: "Run antivirus across all systems.", kind: "incorrect" },
+        ],
+      },
+    ],
+  },
+  {
+    id: "scn-002",
+    title: "Phishing Attack on Email",
+    risk: "Low",
+    description: "Tests awareness and response to phishing attempts.",
+    questions: [
+      {
+        id: "q1",
+        text: "What should you do when you suspect a phishing email?",
+        options: [
+          { id: "a", text: "Report it to IT Security.", kind: "correct" },
+          { id: "b", text: "Reply to confirm sender identity.", kind: "incorrect" },
+        ],
+      },
+    ],
+  },
+  {
+    id: "scn-003",
+    title: "Data Breach — S3 Bucket",
+    risk: "High",
+    description: "Tests procedures for handling cloud data exposure.",
+    questions: [
+      {
+        id: "q1",
+        text: "What’s the immediate step after detecting exposed data?",
+        options: [
+          { id: "a", text: "Revoke access keys and isolate bucket.", kind: "correct" },
+          { id: "b", text: "Ignore until external notification.", kind: "incorrect" },
+        ],
+      },
+    ],
+  },
+];
+
+export default function ViewSpecificScenario() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [editing, setEditing] = useState(false);
   const [scenario, setScenario] = useState(null);
+  const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    // Mock fetch: replace with real API call /api/scenarios/:id
-    const mock = {
-      id,
-      title: "Ransomware Detected",
-      risk: "Medium",
-      tags: ["Security","IR"],
-      est: "15–20 min",
-      maxScore: 50,
-      sections: 2,
-      questions: 5,
-      updatedAt: "2025-10-20T14:12:00Z",
-      description: "Simulates a ransomware incident impacting production endpoints."
-    };
-    setScenario(mock);
+    const found = mockScenarios.find((s) => s.id === id);
+    setScenario(found ? { ...found } : null);
   }, [id]);
 
-  const save = () => {
-    // TODO: POST/PUT to API
-    setEditing(false);
+  if (!scenario) {
+    return (
+      <div className="admin-root">
+        <div className="container">
+          <p>Scenario not found.</p>
+          <button className="btn-outlined" onClick={() => navigate("/admin/scenarios")}>
+            ← Back
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const handleSave = () => {
+    console.log("Saving scenario:", scenario);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
   };
 
-  if (!scenario) return <div className="loading">Loading…</div>;
-
   return (
-    <div className="specific-root">
-      <div className="specific-topbar">
-        <button className="btn-outlined" onClick={()=>navigate("/admin/scenarios")}>← Back</button>
-        <div style={{display:"flex",gap:8}}>
-          {!editing ? (
-            <button className="btn-primary" onClick={()=>setEditing(true)}>Edit</button>
-          ) : (
-            <button className="btn-primary" onClick={save}>Save changes</button>
-          )}
+    <div className="admin-root">
+      <div className="admin-topbar">
+        <div className="admin-topbar-inner">
+          <div className="brand">
+            <span className="brand-icon" aria-hidden>
+              <svg viewBox="0 0 24 24" fill="none">
+                <rect x="3" y="3" width="18" height="18" rx="4" fill="#6b61ff" opacity="0.15" />
+                <rect x="7" y="7" width="10" height="10" rx="2" stroke="#6b61ff" strokeWidth="1.5" />
+              </svg>
+            </span>
+            <span className="brand-name">AdminPro</span>
+          </div>
+
+          <div className="row gap">
+            <button className="btn-outlined" onClick={() => navigate("/admin/scenarios")}>
+              ← Back
+            </button>
+            <button className="btn-primary" onClick={handleSave}>
+              {saved ? "Saved ✅" : "Save changes"}
+            </button>
+          </div>
         </div>
       </div>
 
-      <div className="specific-content">
-        {!editing ? (
-          <>
-            <h1>{scenario.title}</h1>
-            <p className="muted">ID: {scenario.id}</p>
+      <div className="container create-wrap">
+        <h1 className="page-title">Edit Scenario</h1>
+        <p className="page-subtitle">Modify metadata, questions, and scoring.</p>
 
-            <div className="info-grid">
-              <div><b>Risk:</b> <span className="pill">{scenario.risk}</span></div>
-              <div><b>Tags:</b> {scenario.tags.join(", ")}</div>
-              <div><b>Estimated time:</b> {scenario.est}</div>
-              <div><b>Max score:</b> {scenario.maxScore}</div>
-              <div><b>Sections:</b> {scenario.sections}</div>
-              <div><b>Questions:</b> {scenario.questions}</div>
-              <div><b>Last updated:</b> {new Date(scenario.updatedAt).toLocaleString()}</div>
+        <div className="panel">
+          <h3 className="panel-title">Scenario details</h3>
+
+          <div className="form-row">
+            <label>Title</label>
+            <input
+              className="input"
+              value={scenario.title}
+              onChange={(e) => setScenario({ ...scenario, title: e.target.value })}
+            />
+          </div>
+
+          <div className="form-row">
+            <label>Risk</label>
+            <select
+              className="input"
+              value={scenario.risk}
+              onChange={(e) => setScenario({ ...scenario, risk: e.target.value })}
+            >
+              <option>Low</option>
+              <option>Medium</option>
+              <option>High</option>
+            </select>
+          </div>
+
+          <div className="form-row">
+            <label>Description</label>
+            <textarea
+              className="input"
+              rows={3}
+              value={scenario.description}
+              onChange={(e) => setScenario({ ...scenario, description: e.target.value })}
+            />
+          </div>
+        </div>
+
+        <div className="panel">
+          <h3 className="panel-title">Questions</h3>
+          {scenario.questions.map((q, qi) => (
+            <div key={q.id} className="q-card">
+              <b>Q{qi + 1}</b>
+              <input
+                className="input"
+                value={q.text}
+                onChange={(e) => {
+                  const updated = [...scenario.questions];
+                  updated[qi].text = e.target.value;
+                  setScenario({ ...scenario, questions: updated });
+                }}
+              />
+              <ul>
+                {q.options.map((o, oi) => (
+                  <li key={o.id}>
+                    <input
+                      className="input small"
+                      value={o.text}
+                      onChange={(e) => {
+                        const updated = [...scenario.questions];
+                        updated[qi].options[oi].text = e.target.value;
+                        setScenario({ ...scenario, questions: updated });
+                      }}
+                    />
+                    <select
+                      className="input small"
+                      value={o.kind}
+                      onChange={(e) => {
+                        const updated = [...scenario.questions];
+                        updated[qi].options[oi].kind = e.target.value;
+                        setScenario({ ...scenario, questions: updated });
+                      }}
+                    >
+                      <option value="correct">correct</option>
+                      <option value="incorrect">incorrect</option>
+                      <option value="partial">partial</option>
+                    </select>
+                  </li>
+                ))}
+              </ul>
             </div>
-
-            <div className="description-box">
-              <h3>Description</h3>
-              <p>{scenario.description}</p>
-            </div>
-          </>
-        ) : (
-          <>
-            <h1>Edit scenario</h1>
-            <div className="form-grid">
-              <label>Title
-                <input className="input" value={scenario.title}
-                  onChange={e=>setScenario(s=>({...s,title:e.target.value}))} />
-              </label>
-
-              <label>Risk
-                <select className="input" value={scenario.risk}
-                  onChange={e=>setScenario(s=>({...s,risk:e.target.value}))}>
-                  <option>Low</option><option>Medium</option><option>High</option>
-                </select>
-              </label>
-
-              <label>Tags (comma separated)
-                <input className="input" value={scenario.tags.join(", ")}
-                  onChange={e=>setScenario(s=>({...s,tags:e.target.value.split(",").map(x=>x.trim()).filter(Boolean)}))} />
-              </label>
-
-              <label>Estimated time
-                <input className="input" value={scenario.est}
-                  onChange={e=>setScenario(s=>({...s,est:e.target.value}))} />
-              </label>
-
-              <label>Max score
-                <input type="number" className="input" value={scenario.maxScore}
-                  onChange={e=>setScenario(s=>({...s,maxScore:Number(e.target.value||0)}))} />
-              </label>
-
-              <label>Sections
-                <input type="number" className="input" value={scenario.sections}
-                  onChange={e=>setScenario(s=>({...s,sections:Number(e.target.value||0)}))} />
-              </label>
-
-              <label>Questions
-                <input type="number" className="input" value={scenario.questions}
-                  onChange={e=>setScenario(s=>({...s,questions:Number(e.target.value||0)}))} />
-              </label>
-
-              <label>Description
-                <textarea className="input" rows={6} value={scenario.description}
-                  onChange={e=>setScenario(s=>({...s,description:e.target.value}))} />
-              </label>
-            </div>
-          </>
-        )}
+          ))}
+        </div>
       </div>
     </div>
   );
