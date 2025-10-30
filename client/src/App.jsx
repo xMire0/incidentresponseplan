@@ -9,6 +9,9 @@ import CreateScenario from "./pages/CreateScenario.jsx";
 import GenerateReport from "./pages/GenerateReport.jsx";
 import ViewScenario from "./pages/ViewScenario.jsx";
 import ViewSpecificScenario from "./pages/ViewSpecificScenario.jsx";
+import ViewResultsSpecific from "./pages/ViewResultsSpecific.jsx";
+import ViewScenarioResults from "./pages/ViewScenarioResults.jsx";
+
 
 
 export default function App() {
@@ -46,6 +49,10 @@ export default function App() {
         <Route path="/admin/scenarios" element={<ViewScenario />} />
         <Route path="/admin/scenario/create" element={<CreateScenario />} />
         <Route path="/admin/scenario/:id" element={<ViewSpecificScenario />} />
+        <Route path="/admin/results/:id" element={<ViewResultsSpecific />} />
+        <Route path="/admin/scenario/:id/results" element={<ViewScenarioResults />} />
+
+
 
 
         {/* Fallback → Login */}

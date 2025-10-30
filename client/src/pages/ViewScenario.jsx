@@ -98,9 +98,28 @@ export default function ViewScenario() {
                 <div className="c c2"><span className="pill">{s.risk}</span></div>
                 <div className="c c3"><div className="muted tiny">{new Date(s.updatedAt).toLocaleString()}</div></div>
                 <div className="c c4">
-                  <button className="btn-ghost" onClick={()=>navigate(`/admin/scenario/${s.id}`)}>View</button>
-                  <button className="btn-ghost" onClick={()=>remove(s.id)}>Delete</button>
-                </div>
+  <button
+    className="btn-ghost"
+    onClick={() => navigate(`/admin/scenario/${s.id}`)}
+  >
+    View
+  </button>
+
+  <button
+    className="btn-ghost"
+    onClick={() => navigate(`/admin/scenario/${s.id}/results`)}
+  >
+    View Results
+  </button>
+
+  <button
+    className="btn-ghost"
+    onClick={() => remove(s.id)}
+  >
+    Delete
+  </button>
+</div>
+
               </div>
             ))}
           </div>
