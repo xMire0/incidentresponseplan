@@ -1,0 +1,97 @@
+:root {
+  --bg: #0b0f16;
+  --surface: #141826;
+  --edge: rgba(255, 255, 255, 0.1);
+  --text: #e9eef5;
+  --muted: #9aa5b1;
+  --brand: #6b61ff;
+  --shadow: 0 18px 40px rgba(0, 0, 0, 0.35), 0 8px 18px rgba(0, 0, 0, 0.28);
+}
+
+.admin-root {
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+}
+
+.page-title {
+  font-size: 32px;
+  font-weight: 800;
+  margin: 0 0 6px;
+}
+
+.page-subtitle {
+  color: var(--muted);
+  margin: 0 0 18px;
+}
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--edge);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  padding: 18px;
+  margin-bottom: 20px;
+}
+
+.panel-title {
+  font-size: 15px;
+  letter-spacing: 0.2px;
+  color: #cdd3df;
+  margin-bottom: 10px;
+}
+
+.form-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.input {
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--edge);
+  color: var(--text);
+  font-size: 15px;
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--brand);
+}
+
+textarea.input {
+  resize: vertical;
+}
+
+.btn-primary {
+  background: var(--brand);
+  border: none;
+  color: white;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.btn-primary:hover {
+  background: #7c73ff;
+}
+
+.btn-outlined {
+  border: 1px solid var(--edge);
+  background: transparent;
+  color: var(--text);
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.btn-outlined:hover {
+  background: rgba(255, 255, 255, 0.05);
+}

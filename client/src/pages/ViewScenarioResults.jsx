@@ -106,7 +106,7 @@ export default function ViewScenarioResults() {
                   <td>
                     <button
                       className="btn-ghost"
-                      onClick={() => navigate(`/admin/results/${r.scenarioId}`)}
+                      onClick={() => navigate(`/admin/incident/${r.Id}`)}
                     >
                       View details
                     </button>

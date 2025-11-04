@@ -9,8 +9,14 @@ import CreateScenario from "./pages/CreateScenario.jsx";
 import GenerateReport from "./pages/GenerateReport.jsx";
 import ViewScenario from "./pages/ViewScenario.jsx";
 import ViewSpecificScenario from "./pages/ViewSpecificScenario.jsx";
-import ViewResultsSpecific from "./pages/ViewResultsSpecific.jsx";
+import ViewSpecificIncident from "./pages/ViewSpecificIncident.jsx";
 import ViewScenarioResults from "./pages/ViewScenarioResults.jsx";
+import EditSpecificScenario from "./pages/EditSpecificScenario.jsx";
+import CreateIncident from "./pages/CreateIncident.jsx";
+import ViewIncidents from "./pages/ViewIncidents.jsx";
+
+
+
 
 
 
@@ -49,8 +55,15 @@ export default function App() {
         <Route path="/admin/scenarios" element={<ViewScenario />} />
         <Route path="/admin/scenario/create" element={<CreateScenario />} />
         <Route path="/admin/scenario/:id" element={<ViewSpecificScenario />} />
-        <Route path="/admin/results/:id" element={<ViewResultsSpecific />} />
+        <Route path="/admin/incident/:id" element={<ViewSpecificIncident />} />
         <Route path="/admin/scenario/:id/results" element={<ViewScenarioResults />} />
+        <Route path="/admin/scenario/:id/edit" element={<EditSpecificScenario />} />
+        <Route path="/admin/scenario/:id/create-incident" element={<CreateIncident />} />
+        <Route path="/admin/scenario/:id/incidents" element={<ViewIncidents />} />
+
+
+
+
 
 
 

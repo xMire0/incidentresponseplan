@@ -105,12 +105,10 @@ export default function ViewScenario() {
     View
   </button>
 
-  <button
-    className="btn-ghost"
-    onClick={() => navigate(`/admin/scenario/${s.id}/results`)}
-  >
-    View Results
-  </button>
+  <button className="btn-ghost" onClick={() => navigate(`/admin/scenario/${s.id}/incidents`)}>
+  View incidents
+</button>
+
 
   <button
     className="btn-ghost"
