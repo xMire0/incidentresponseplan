@@ -162,4 +162,30 @@ details[open] {
 
 }
 
+.right-buttons {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
 
+.btn-secondary {
+  background: linear-gradient(90deg, #6b61ff, #8f85ff);
+  border: none;
+  color: #fff;
+  padding: 8px 16px;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.2s ease;
+  box-shadow: 0 0 10px rgba(107, 97, 255, 0.4);
+}
+
+.btn-secondary:hover {
+  box-shadow: 0 0 18px rgba(107, 97, 255, 0.7);
+  transform: translateY(-1px);
+}
+
+.btn-secondary:active {
+  transform: translateY(1px);
+  opacity: 0.9;
+}

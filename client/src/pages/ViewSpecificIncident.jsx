@@ -1,11 +1,12 @@
 // src/pages/ViewSpecificIncident.jsx
 import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import "./ViewSpecificIncident.css";
 
-
 export default function ViewSpecificIncident() {
-  const { id } = useParams(); // Incident ID
+  const { id } = useParams();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [incident, setIncident] = useState(null);
@@ -71,6 +72,68 @@ export default function ViewSpecificIncident() {
     }, 400);
   }, [id]);
 
+  // ✅ Generate PDF for this incident only
+  const generateIncidentPDF = () => {
+    if (!incident) return;
+
+    const doc = new jsPDF();
+    let y = 20;
+
+    // Header
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(18);
+    doc.text(`Incident Report — ${incident.title}`, 14, y);
+    y += 10;
+
+    // Basic Info
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Scenario: ${incident.scenario}`, 14, y);
+    y += 6;
+    doc.text(`Status: ${incident.status}`, 14, y);
+    y += 6;
+    doc.text(`Started: ${new Date(incident.startedAt).toLocaleString()}`, 14, y);
+    y += 6;
+    doc.text(`Completed: ${new Date(incident.completedAt).toLocaleString()}`, 14, y);
+    y += 6;
+    doc.text(`Participants: ${incident.participants.length}`, 14, y);
+    y += 10;
+
+    // Participants
+    incident.participants.forEach((p, idx) => {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(13);
+      doc.text(`${idx + 1}. ${p.name} — ${p.totalScore}/${p.maxScore} pts`, 14, y);
+      y += 6;
+
+      const rows = p.answers.map((a, i) => [
+        i + 1,
+        a.question,
+        a.selected,
+        a.correct ? "✓ Correct" : "✗ Incorrect",
+        `${a.points} pts`,
+      ]);
+
+      autoTable(doc, {
+        startY: y,
+        head: [["#", "Question", "Answer", "Verdict", "Points"]],
+        body: rows,
+        theme: "grid",
+        styles: { fontSize: 9, cellPadding: 2 },
+        headStyles: { fillColor: [107, 97, 255] },
+      });
+
+      y = doc.lastAutoTable.finalY + 10;
+    });
+
+    // Footer
+    const dateStr = new Date().toLocaleString();
+    doc.setFontSize(10);
+    doc.text(`Generated on ${dateStr}`, 14, 285);
+
+    doc.save(`${incident.title.replace(/\s+/g, "_")}.pdf`);
+  };
+
   if (loading) {
     return (
       <div className="admin-root">
@@ -108,9 +171,15 @@ export default function ViewSpecificIncident() {
             </span>
             <span className="brand-name">AdminPro</span>
           </div>
-          <button className="btn-outlined" onClick={() => navigate(-1)}>
-            ← Back
-          </button>
+
+          <div className="right-buttons">
+            <button className="btn-secondary" onClick={generateIncidentPDF}>
+              ⬇ Generate Report (PDF)
+            </button>
+            <button className="btn-outlined" onClick={() => navigate(-1)}>
+              ← Back
+            </button>
+          </div>
         </div>
       </div>
 
@@ -124,34 +193,22 @@ export default function ViewSpecificIncident() {
         <div className="panel">
           <h3 className="panel-title">Incident Info</h3>
           <div className="summary-stats">
-            <div>
-              <b>Scenario:</b> {incident.scenario}
-            </div>
+            <div><b>Scenario:</b> {incident.scenario}</div>
             <div>
               <b>Status:</b>{" "}
-              <span
-                className={`pill ${
-                  incident.status === "Completed"
-                    ? "green"
-                    : incident.status === "Active"
-                    ? "amber"
-                    : "red"
-                }`}
-              >
+              <span className={`pill ${
+                incident.status === "Completed"
+                  ? "green"
+                  : incident.status === "Active"
+                  ? "amber"
+                  : "red"
+              }`}>
                 {incident.status}
               </span>
             </div>
-            <div>
-              <b>Started:</b>{" "}
-              {new Date(incident.startedAt).toLocaleDateString("en-GB")}
-            </div>
-            <div>
-              <b>Completed:</b>{" "}
-              {new Date(incident.completedAt).toLocaleDateString("en-GB")}
-            </div>
-            <div>
-              <b>Participants:</b> {incident.participants.length}
-            </div>
+            <div><b>Started:</b> {new Date(incident.startedAt).toLocaleDateString("en-GB")}</div>
+            <div><b>Completed:</b> {new Date(incident.completedAt).toLocaleDateString("en-GB")}</div>
+            <div><b>Participants:</b> {incident.participants.length}</div>
           </div>
         </div>
 
@@ -167,20 +224,13 @@ export default function ViewSpecificIncident() {
 
               <div className="answers-list">
                 {p.answers.map((a, i) => (
-                  <details
-                    key={i}
-                    className={`answer-row ${a.correct ? "correct" : "incorrect"}`}
-                  >
+                  <details key={i} className={`answer-row ${a.correct ? "correct" : "incorrect"}`}>
                     <summary className="q-summary">
                       Q{i + 1}: {a.question}
                     </summary>
                     <div className="q-body">
-                      <div>
-                        <b>Answer:</b> {a.selected}
-                      </div>
-                      <div>
-                        <b>Points:</b> {a.points}
-                      </div>
+                      <div><b>Answer:</b> {a.selected}</div>
+                      <div><b>Points:</b> {a.points}</div>
                       <div className={`verdict ${a.correct ? "ok" : "bad"}`}>
                         {a.correct ? "✓ Correct" : "✗ Incorrect"}
                       </div>
