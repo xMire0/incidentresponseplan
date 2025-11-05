@@ -1,11 +1,130 @@
 // src/pages/CreateScenario.jsx
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "./CreateScenario.css";
 
-/* Mock Question Bank API — swap later with GET /api/question-bank?q=... */
+/* ===== Role catalog (can come from API later) ===== */
+const ROLE_CATALOG = [
+  "Developer",
+  "Security",
+  "IT Ops",
+  "Support",
+  "Sales",
+  "Finance",
+  "HR",
+];
+
+/* ===== Chip-style searchable multi-select for roles ===== */
+function RolePicker({ value = [], onChange }) {
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState("");
+  const ref = useRef(null);
+
+  // close on outside click
+  useEffect(() => {
+    const onDoc = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener("pointerdown", onDoc);
+    return () => document.removeEventListener("pointerdown", onDoc);
+  }, []);
+
+  const selected = new Set(value);
+  const filtered = ROLE_CATALOG.filter((r) =>
+    r.toLowerCase().includes(q.trim().toLowerCase())
+  );
+
+  const toggle = (role) => {
+    const next = new Set(selected);
+    next.has(role) ? next.delete(role) : next.add(role);
+    onChange(Array.from(next));
+  };
+
+  const clearAll = () => onChange([]); // empty = Everyone
+
+  return (
+    <div className="rolepicker" ref={ref}>
+      <button
+        type="button"
+        className="rp-field"
+        onClick={() => setOpen((v) => !v)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+      >
+        <div className="rp-chips">
+          {value.length === 0 ? (
+            <span className="chip chip-all">All Employees</span>
+          ) : (
+            value.map((r) => (
+              <span key={r} className="chip">
+                {r}
+                <button
+                  type="button"
+                  className="chip-x"
+                  aria-label={`Remove ${r}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggle(r);
+                  }}
+                >
+                  ×
+                </button>
+              </span>
+            ))
+          )}
+        </div>
+        <span className="rp-caret" aria-hidden>
+          ▾
+        </span>
+      </button>
+
+      {open && (
+        <div className="rp-pop" role="listbox">
+          <div className="rp-search">
+            <input
+              className="input"
+              placeholder="Search roles…"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              autoFocus
+            />
+            <button className="btn-ghost rp-clear" onClick={clearAll} title="Everyone">
+              All
+            </button>
+          </div>
+
+          <div className="rp-list">
+            {filtered.length === 0 && <div className="rp-empty">No roles match.</div>}
+            {filtered.map((r) => {
+              const picked = selected.has(r);
+              return (
+                <button
+                  type="button"
+                  key={r}
+                  className={`rp-item ${picked ? "is-picked" : ""}`}
+                  onClick={() => toggle(r)}
+                >
+                  <span className={`rp-check ${picked ? "on" : ""}`} aria-hidden>
+                    {picked ? "✓" : ""}
+                  </span>
+                  <span className="rp-txt">{r}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="rp-help">
+            Empty = everyone. If you pick roles, the question is visible only to those roles.
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ===== Mock Question Bank API — swap later with GET /api/question-bank?q=... ===== */
 async function fetchQuestionBank(query = "") {
-  await new Promise((r) => setTimeout(r, 200)); // demo latency
+  await new Promise((r) => setTimeout(r, 200));
   const bank = [
     {
       id: "q1",
@@ -13,8 +132,8 @@ async function fetchQuestionBank(query = "") {
       tags: ["Security", "IR"],
       options: [
         { id: "a", text: "Disconnect affected servers from the network.", score: 10, kind: "correct" },
-        { id: "b", text: "Run antivirus across all systems immediately.", score: 2,  kind: "incorrect" }
-      ]
+        { id: "b", text: "Run antivirus across all systems immediately.", score: 2, kind: "incorrect" },
+      ],
     },
     {
       id: "q2",
@@ -22,9 +141,9 @@ async function fetchQuestionBank(query = "") {
       tags: ["Security", "IR"],
       options: [
         { id: "a", text: "Immediately after detection to escalate response.", score: 10, kind: "correct" },
-        { id: "b", text: "Only after resolution.", score: 2, kind: "incorrect" }
-      ]
-    }
+        { id: "b", text: "Only after resolution.", score: 2, kind: "incorrect" },
+      ],
+    },
   ];
   const q = query.trim().toLowerCase();
   return q ? bank.filter((x) => x.text.toLowerCase().includes(q)) : bank;
@@ -42,31 +161,32 @@ export default function CreateScenario() {
     description: "",
   });
 
-  // —— Flat list of Questions (no sections) ——
+  // —— Questions (flat) ——
   const [questions, setQuestions] = useState([
     {
       id: nid(),
       text: "",
+      roles: [], // empty = All Employees (we render a chip for “All Employees”)
       options: [
         { id: nid(), text: "", score: 10, kind: "correct" },
-        { id: nid(), text: "", score: 2,  kind: "incorrect" },
+        { id: nid(), text: "", score: 2, kind: "incorrect" },
       ],
     },
   ]);
 
-  // —— Question Bank drawer state ——
-const [bankOpen, setBankOpen] = useState(false);
-const [bankLoading, setBankLoading] = useState(false);
-const [bankQuery, setBankQuery] = useState("");
-const [bankItems, setBankItems] = useState([]);
-const [bankSelected, setBankSelected] = useState(null);
-const [bankCompact, setBankCompact] = useState(true); // compact vs wrapped preview
+  // —— Question Bank drawer ——
+  const [bankOpen, setBankOpen] = useState(false);
+  const [bankLoading, setBankLoading] = useState(false);
+  const [bankQuery, setBankQuery] = useState("");
+  const [bankItems, setBankItems] = useState([]);
+  const [bankSelected, setBankSelected] = useState(null);
+
   const openBank = async () => {
     setBankOpen(true);
     setBankLoading(true);
     const data = await fetchQuestionBank();
     setBankItems(data);
-    setBankSelected(data[0] || null); // ensure a selection exists
+    setBankSelected(data[0] || null);
     setBankLoading(false);
   };
 
@@ -75,25 +195,21 @@ const [bankCompact, setBankCompact] = useState(true); // compact vs wrapped prev
     setBankLoading(true);
     const data = await fetchQuestionBank(q);
     setBankItems(data);
-    // keep selection if still present, else pick first
-    setBankSelected((prev) => data.find(d => d.id === prev?.id) || data[0] || null);
+    setBankSelected((prev) => data.find((d) => d.id === prev?.id) || data[0] || null);
     setBankLoading(false);
   };
 
-  // Add selected bank question as a COPY (safe for future versioning)
   const addFromBankAsCopy = () => {
     if (!bankSelected) return;
-
     const copyOpt = (o) => ({ ...o, id: nid() });
     const qCopy = {
       id: nid(),
       text: bankSelected.text,
+      roles: [], // default to Everyone on copy
       options: (bankSelected.options || []).map(copyOpt),
-      source: { type: "bank", refId: bankSelected.id }, // helpful for backend
+      source: { type: "bank", refId: bankSelected.id },
     };
-
     setQuestions((qs) => [...qs, qCopy]);
-
     setBankOpen(false);
     setBankSelected(null);
     setBankQuery("");
@@ -102,16 +218,17 @@ const [bankCompact, setBankCompact] = useState(true); // compact vs wrapped prev
   // —— Validation ——
   const issues = useMemo(() => validate(meta, questions), [meta, questions]);
 
-  // Questions CRUD
+  // —— Questions CRUD ——
   const addQuestion = () => {
     setQuestions((q) => [
       ...q,
       {
         id: nid(),
         text: "",
+        roles: [], // Everyone by default
         options: [
           { id: nid(), text: "", score: 10, kind: "correct" },
-          { id: nid(), text: "", score: 2,  kind: "incorrect" },
+          { id: nid(), text: "", score: 2, kind: "incorrect" },
         ],
       },
     ]);
@@ -125,7 +242,7 @@ const [bankCompact, setBankCompact] = useState(true); // compact vs wrapped prev
     setQuestions((q) => q.map((x) => (x.id === qid ? { ...x, ...patch } : x)));
   };
 
-  // Options CRUD
+  // —— Options CRUD ——
   const addOption = (qid) => {
     setQuestions((q) =>
       q.map((x) =>
@@ -138,20 +255,18 @@ const [bankCompact, setBankCompact] = useState(true); // compact vs wrapped prev
 
   const removeOption = (qid, oid) => {
     setQuestions((q) =>
-      q.map((x) =>
-        x.id === qid ? { ...x, options: x.options.filter((o) => o.id !== oid) } : x
-      )
+      q.map((x) => (x.id === qid ? { ...x, options: x.options.filter((o) => o.id !== oid) } : x))
     );
   };
 
-  // Options: edit (allow multiple correct answers; no exclusivity)
+  // Allow multiple correct answers (no exclusivity)
   const updateOption = (qid, oid, patch) => {
-    setQuestions(q =>
-      q.map(x => {
+    setQuestions((q) =>
+      q.map((x) => {
         if (x.id !== qid) return x;
         return {
           ...x,
-          options: x.options.map(o => {
+          options: x.options.map((o) => {
             if (o.id !== oid) return o;
             const bump =
               patch.kind === "correct" && patch.score == null
@@ -164,20 +279,20 @@ const [bankCompact, setBankCompact] = useState(true); // compact vs wrapped prev
     );
   };
 
-  // Quick toggle correct on/off for a single option (still no exclusivity)
+  // Toggle this option’s correctness
   const markCorrect = (qid, oid) => {
-    setQuestions(q =>
-      q.map(x =>
+    setQuestions((q) =>
+      q.map((x) =>
         x.id !== qid
           ? x
           : {
               ...x,
-              options: x.options.map(o =>
+              options: x.options.map((o) =>
                 o.id !== oid
                   ? o
                   : o.kind === "correct"
-                  ? { ...o, kind: "incorrect" }
-                  : { ...o, kind: "correct", score: Math.max(10, o.score || 10) }
+                  ? { ...o, kind: "incorrect" } // turn off
+                  : { ...o, kind: "correct", score: Math.max(10, o.score || 10) } // turn on
               ),
             }
       )
@@ -190,7 +305,6 @@ const [bankCompact, setBankCompact] = useState(true); // compact vs wrapped prev
       (sum, q) => sum + Math.max(0, ...q.options.map((o) => Number(o.score) || 0)),
       0
     );
-
     return {
       title: meta.title.trim(),
       risk: meta.risk,
@@ -244,7 +358,7 @@ const [bankCompact, setBankCompact] = useState(true); // compact vs wrapped prev
       {/* — Content — */}
       <div className="container create-wrap">
         <h1 className="page-title">Create Scenario</h1>
-        <p className="page-subtitle">Define metadata, questions and scoring.</p>
+        <p className="page-subtitle">Define metadata, target audience, questions and scoring.</p>
 
         {flash && <div className={`flash ${flash.type}`}>{flash.text}</div>}
 
@@ -325,6 +439,15 @@ const [bankCompact, setBankCompact] = useState(true); // compact vs wrapped prev
                   />
                 </div>
 
+                {/* Audience (roles) */}
+                <div className="form-row">
+                  <label>Audience (roles)</label>
+                  <RolePicker
+                    value={q.roles || []}
+                    onChange={(roles) => updateQuestion(q.id, { roles })}
+                  />
+                </div>
+
                 {/* Options */}
                 <div className="opts">
                   <div className="opts-head">
@@ -340,7 +463,7 @@ const [bankCompact, setBankCompact] = useState(true); // compact vs wrapped prev
                         type="button"
                         className={`opt-check ${o.kind}`}
                         onClick={() => markCorrect(q.id, o.id)}
-                        title={o.kind === "correct" ? "This is the correct answer" : "Mark as correct"}
+                        title={o.kind === "correct" ? "This is a correct answer (toggle)" : "Mark as correct"}
                         aria-label={o.kind === "correct" ? "Correct answer" : "Mark option as correct"}
                       >
                         {o.kind === "correct" ? "✓" : o.kind === "partial" ? "~" : "×"}
@@ -375,11 +498,7 @@ const [bankCompact, setBankCompact] = useState(true); // compact vs wrapped prev
                         <option value="none">none</option>
                       </select>
 
-                      <button
-                        className="btn-ghost danger"
-                        onClick={() => removeOption(q.id, o.id)}
-                        type="button"
-                      >
+                      <button className="btn-ghost danger" onClick={() => removeOption(q.id, o.id)} type="button">
                         Remove
                       </button>
                     </div>
@@ -399,7 +518,6 @@ const [bankCompact, setBankCompact] = useState(true); // compact vs wrapped prev
           {/* RIGHT: live preview */}
           <div className="panel preview">
             <h3 className="panel-title">Preview</h3>
-
             <div className="preview-card">
               <div className="p-top">
                 <span className="p-icon" aria-hidden>
@@ -440,12 +558,14 @@ const [bankCompact, setBankCompact] = useState(true); // compact vs wrapped prev
           <div className="drawer-panel">
             <div className="drawer-head">
               <b>Select from question bank</b>
-              <button className="btn-ghost" onClick={() => setBankOpen(false)}>Close</button>
+              <button className="btn-ghost" onClick={() => setBankOpen(false)}>
+                Close
+              </button>
             </div>
 
             {/* Single-column bank body */}
             <div className="panel bank-body">
-              {/* Top: search */}
+              {/* Search */}
               <input
                 className="input"
                 placeholder="Search question text…"
@@ -453,51 +573,36 @@ const [bankCompact, setBankCompact] = useState(true); // compact vs wrapped prev
                 onChange={(e) => searchBank(e.target.value)}
               />
 
-              {/* Controls: dropdown + compact/wrap toggles */}
+              {/* Dropdown */}
               <div className="bank-controls">
                 <select
                   className="input bank-select"
                   value={bankSelected?.id || ""}
                   onChange={(e) => {
-                    const picked = bankItems.find(x => x.id === e.target.value);
+                    const picked = bankItems.find((x) => x.id === e.target.value);
                     setBankSelected(picked || null);
                   }}
                 >
-                  <option value="" disabled>{bankLoading ? "Loading…" : "Choose a question…"}</option>
-                  {bankItems.map(item => (
+                  <option value="" disabled>
+                    {bankLoading ? "Loading…" : "Choose a question…"}
+                  </option>
+                  {bankItems.map((item) => (
                     <option key={item.id} value={item.id}>
                       {item.text}
                     </option>
                   ))}
                 </select>
-
-                <div className="toggle-wrap">
-                  <button
-                    type="button"
-                    className={`btn-ghost ${bankCompact ? "is-active" : ""}`}
-                    onClick={() => setBankCompact(true)}
-                  >
-                    Compact
-                  </button>
-                  <button
-                    type="button"
-                    className={`btn-ghost ${!bankCompact ? "is-active" : ""}`}
-                    onClick={() => setBankCompact(false)}
-                  >
-                    Wrap
-                  </button>
-                </div>
               </div>
 
               {/* Preview */}
-              <div className={`preview-card ${bankCompact ? "is-compact" : "is-wrapped"}`} style={{ marginTop: 6 }}>
+              <div className="preview-card is-wrapped" style={{ marginTop: 6 }}>
                 <h3 className="q-title">{bankSelected?.text || "Select a question above"}</h3>
 
                 {bankSelected && (
                   <>
                     <div className="opts-title">Options</div>
 
-                    {(bankSelected.options || []).map(o => (
+                    {(bankSelected.options || []).map((o) => (
                       <div key={o.id} className={`opt-row status-${o.kind}`}>
                         <div className={`opt-check ${o.kind}`} aria-hidden>
                           {o.kind === "correct" ? "✓" : o.kind === "partial" ? "~" : "×"}
@@ -510,8 +615,12 @@ const [bankCompact, setBankCompact] = useState(true); // compact vs wrapped prev
                     ))}
 
                     <div className="drawer-actions" style={{ justifyContent: "flex-start", gap: 10 }}>
-                      <button className="btn-primary" onClick={addFromBankAsCopy}>Add as copy</button>
-                      <button className="btn-ghost" disabled title="Linking can be added later">Link (later)</button>
+                      <button className="btn-primary" onClick={addFromBankAsCopy}>
+                        Add as copy
+                      </button>
+                      <button className="btn-ghost" disabled title="Linking can be added later">
+                        Link (later)
+                      </button>
                     </div>
                   </>
                 )}
@@ -533,13 +642,11 @@ function validate(meta, questions) {
   const out = [];
   if (!meta.title.trim()) out.push("Title is required.");
   if (!questions.length) out.push("Add at least one question.");
-
   questions.forEach((q, qi) => {
     if (!q.text.trim()) out.push(`Q${qi + 1}: question text is required.`);
     if (!q.options.length) out.push(`Q${qi + 1}: add at least one option.`);
     const hasCorrect = q.options.some((o) => o.kind === "correct");
     if (!hasCorrect) out.push(`Q${qi + 1}: mark one option as correct.`);
   });
-
   return out;
 }

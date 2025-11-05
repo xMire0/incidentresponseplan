@@ -12,7 +12,13 @@
 }
 
 *{box-sizing:border-box}
-.empX{min-height:100vh; background:radial-gradient(1200px 600px at 70% -10%, #0d1423 0%, #070b12 40%, #05070c 100%); color:var(--text); position:relative; overflow:hidden;}
+.empX{
+  min-height:100vh;
+  background:radial-gradient(1200px 600px at 70% -10%, #0d1423 0%, #070b12 40%, #05070c 100%);
+  color:var(--text);
+  position:relative;
+  overflow:hidden;
+}
 .container{max-width:1160px; margin:0 auto; padding:0 24px}
 
 /* Ambient blobs */
@@ -138,11 +144,38 @@
 .empty-badge{display:inline-grid; place-items:center; width:58px; height:58px; border-radius:14px; margin-bottom:10px;
   background:linear-gradient(135deg,#67e8f9,#6b61ff); box-shadow:0 10px 28px rgba(107,97,255,.35);}
 .empty h3{margin:6px 0 4px; font-size:20px}
+
 /* Push the cards down, regardless of any margin-collapsing */
-.container.grid {
-  margin-top: 30px; /* ← perfect sweet spot */
+.container.grid { margin-top: 30px; }
+
+/* ---------- SECTION styles (global) ---------- */
+.section-head{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin:6px 0 10px;
 }
 
+.section{ /* wrapper around each section's header + grid */
+  margin-top: 14px;
+}
+
+.section.completed{
+  margin-top: 28px;
+  margin-bottom: 28px;
+}
+
+/* optional: slightly dim completed cards without changing theme */
+.card.is-completed .card-inner{
+  filter:saturate(.96);
+  opacity:.96;
+}
+.card.is-completed .meter i{
+  color:#cbd6e6;
+}
+
+/* ---------- Mobile tweaks ---------- */
 @media (max-width: 960px){
   .container.grid { margin-top: 64px; }
+  
 }

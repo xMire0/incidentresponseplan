@@ -13,83 +13,181 @@ const THEME = [
 ];
 const pickColor = (i) => THEME[i % THEME.length];
 
-/* —— mock API for one scenario —— */
+/* —— localStorage helpers —— */
+const reviewKey = (id) => `train:result:${id}`;
+const isReviewMode = () => new URLSearchParams(window.location.search).get("review") === "1";
+
+/* —— mock API for one scenario (ID-aware) —— */
 async function fetchScenarioDetail(id){
   await new Promise(r=>setTimeout(r,350));
-  return {
-    id:"scn-001",
-    title:"Ransomware Detected",
-    difficulty:"Intermediate",
-    tags:["Security","IR"],
-    est:"15–20 min",
-    color: pickColor(0),
-    sections: [
+
+  const SEC_TRIAGE = {
+    id:"sec-1",
+    title:"Triage & Containment",
+    questions:[
       {
-        id:"sec-1",
-        title:"Triage & Containment",
-        questions:[
-          {
-            id:"q1",
-            text:"What is your first action when detecting ransomware activity?",
-            options:[
-              { id:"a", text:"Disconnect affected servers from the network immediately.", score:10, kind:"correct" },
-              { id:"b", text:"Run antivirus scans on all systems right away.", score:2,  kind:"incorrect" },
-              { id:"c", text:"Inform customers that data may be lost.",          score:2,  kind:"incorrect" },
-              { id:"d", text:"I did not take any action.",                        score:0,  kind:"none" },
-            ],
-            hint:"Contain first. Investigate second.",
-          },
-          {
-            id:"q2",
-            text:"After isolating servers, what should be your next priority?",
-            options:[
-              { id:"a", text:"Restore systems from backup immediately.",            score:2,  kind:"incorrect" },
-              { id:"b", text:"Notify the incident response team and security lead.",score:10, kind:"correct" },
-              { id:"c", text:"Delete encrypted files to save storage.",             score:2,  kind:"incorrect" },
-              { id:"d", text:"I did not take any action.",                          score:0,  kind:"none" },
-            ],
-          },
-        ]
+        id:"q1",
+        text:"What is your first action when detecting ransomware activity?",
+        options:[
+          { id:"a", text:"Disconnect affected servers from the network immediately.", score:10, kind:"correct" },
+          { id:"b", text:"Run antivirus scans on all systems right away.",            score:2,  kind:"incorrect" },
+          { id:"c", text:"Inform customers that data may be lost.",                    score:2,  kind:"incorrect" },
+          { id:"d", text:"I did not take any action.",                                 score:0,  kind:"none" },
+        ],
       },
       {
-        id:"sec-2",
-        title:"Preservation & Communication",
-        questions:[
-          {
-            id:"q3",
-            text:"What data is most critical to preserve during a ransomware incident?",
-            options:[
-              { id:"a", text:"Encrypted system files only.",                        score:2,  kind:"incorrect" },
-              { id:"b", text:"User data and temp logs.",                            score:5,  kind:"partial"   },
-              { id:"c", text:"All forensic logs and system images before reboot.",  score:10, kind:"correct"   },
-              { id:"d", text:"I didn’t preserve any data.",                         score:0,  kind:"none"      },
-            ],
-            hint:"Think forensics & later analysis.",
-          },
-          {
-            id:"q4",
-            text:"When should communication with management occur?",
-            options:[
-              { id:"a", text:"Immediately after detection to escalate response.", score:10, kind:"correct" },
-              { id:"b", text:"Only after resolving the issue.",                  score:2,  kind:"incorrect" },
-              { id:"c", text:"When ransom note includes customer data threats.", score:2,  kind:"incorrect" },
-              { id:"d", text:"I didn’t communicate with management.",           score:0,  kind:"none"      },
-            ],
-          },
-          {
-            id:"q5",
-            text:"What’s the correct procedure regarding ransom payment?",
-            options:[
-              { id:"a", text:"Pay the ransom if the data is mission-critical.",     score:2,  kind:"incorrect" },
-              { id:"b", text:"Contact legal and law enforcement before deciding.",  score:10, kind:"correct"   },
-              { id:"c", text:"Ask IT to handle the payment internally.",            score:2,  kind:"incorrect" },
-              { id:"d", text:"I didn’t escalate or respond.",                       score:0,  kind:"none"      },
-            ],
-          },
-        ]
-      }
-    ]
+        id:"q2",
+        text:"After isolating servers, what should be your next priority?",
+        options:[
+          { id:"a", text:"Restore systems from backup immediately.",             score:2,  kind:"incorrect" },
+          { id:"b", text:"Notify the incident response team and security lead.", score:10, kind:"correct"   },
+          { id:"c", text:"Delete encrypted files to save storage.",              score:2,  kind:"incorrect" },
+          { id:"d", text:"I did not take any action.",                           score:0,  kind:"none"      },
+        ],
+      },
+    ],
   };
+
+  const SEC_COMMS = {
+    id:"sec-2",
+    title:"Preservation & Communication",
+    questions:[
+      {
+        id:"q3",
+        text:"What data is most critical to preserve during a ransomware incident?",
+        options:[
+          { id:"a", text:"Encrypted system files only.",                       score:2,  kind:"incorrect" },
+          { id:"b", text:"User data and temp logs.",                           score:5,  kind:"partial"   },
+          { id:"c", text:"All forensic logs and system images before reboot.", score:10, kind:"correct"   },
+          { id:"d", text:"I didn’t preserve any data.",                        score:0,  kind:"none"      },
+        ],
+      },
+      {
+        id:"q4",
+        text:"When should communication with management occur?",
+        options:[
+          { id:"a", text:"Immediately after detection to escalate response.", score:10, kind:"correct"   },
+          { id:"b", text:"Only after resolving the issue.",                   score:2,  kind:"incorrect" },
+          { id:"c", text:"When ransom note includes customer data threats.",  score:2,  kind:"incorrect" },
+          { id:"d", text:"I didn’t communicate with management.",             score:0,  kind:"none"      },
+        ],
+      },
+      {
+        id:"q5",
+        text:"What’s the correct procedure regarding ransom payment?",
+        options:[
+          { id:"a", text:"Pay the ransom if the data is mission-critical.",    score:2,  kind:"incorrect" },
+          { id:"b", text:"Contact legal and law enforcement before deciding.", score:10, kind:"correct"   },
+          { id:"c", text:"Ask IT to handle the payment internally.",           score:2,  kind:"incorrect" },
+          { id:"d", text:"I didn’t escalate or respond.",                      score:0,  kind:"none"      },
+        ],
+      },
+    ],
+  };
+
+  const MAP = {
+    "scn-001": {
+      id:"scn-001",
+      title:"Ransomware Detected",
+      difficulty:"Intermediate",
+      tags:["Security","IR"],
+      est:"15–20 min",
+      color: pickColor(0),
+      sections:[SEC_TRIAGE, SEC_COMMS],
+    },
+    "scn-002": {
+      id:"scn-002",
+      title:"Phishing Attack on Email",
+      difficulty:"Beginner",
+      tags:["Email","Awareness"],
+      est:"10–15 min",
+      color: pickColor(1),
+      sections:[
+        {
+          id:"sec-1",
+          title:"Identify & Report",
+          questions:[
+            {
+              id:"q1",
+              text:"Which indicators suggest an email is phishing?",
+              options:[
+                { id:"a", text:"Urgent language and mismatched links.", score:10, kind:"correct" },
+                { id:"b", text:"Proper grammar and a company logo.",    score:2,  kind:"incorrect" },
+                { id:"c", text:"Sent from a colleague address",         score:2,  kind:"incorrect" },
+              ],
+            },
+          ],
+        },
+        {
+          id:"sec-2",
+          title:"Containment",
+          questions:[
+            {
+              id:"q2",
+              text:"What is the FIRST action after clicking a suspicious link?",
+              options:[
+                { id:"a", text:"Disconnect from the network and inform IT.", score:10, kind:"correct" },
+                { id:"b", text:"Ignore it if no download started.",          score:2,  kind:"incorrect" },
+                { id:"c", text:"Forward to coworkers to check.",             score:0,  kind:"none" },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    "scn-003": {
+      id:"scn-003",
+      title:"Data Breach – S3 Bucket",
+      difficulty:"Advanced",
+      tags:["Cloud","Compliance"],
+      est:"25–30 min",
+      color: pickColor(2),
+      sections:[
+        {
+          id:"sec-1",
+          title:"Scope & Access",
+          questions:[
+            {
+              id:"q1",
+              text:"Best immediate remediation for public S3 bucket exposure?",
+              options:[
+                { id:"a", text:"Block public access and rotate IAM creds.", score:10, kind:"correct" },
+                { id:"b", text:"Delete the bucket to be safe.",             score:2,  kind:"incorrect" },
+                { id:"c", text:"Wait and monitor for a week.",              score:0,  kind:"none" },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    "scn-004": {
+      id:"scn-004",
+      title:"DDoS on Public API",
+      difficulty:"Intermediate",
+      tags:["Ops","Network"],
+      est:"15–25 min",
+      color: pickColor(3),
+      sections:[
+        {
+          id:"sec-1",
+          title:"Mitigation",
+          questions:[
+            {
+              id:"q1",
+              text:"Which is MOST effective as an immediate DDoS response?",
+              options:[
+                { id:"a", text:"Enable rate limiting / WAF rules.", score:10, kind:"correct" },
+                { id:"b", text:"Scale databases first.",             score:2,  kind:"incorrect" },
+                { id:"c", text:"Disable TLS to speed traffic.",      score:2,  kind:"incorrect" },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+  };
+
+  return MAP[id] ?? MAP["scn-001"];
 }
 
 /* small icons */
@@ -128,7 +226,7 @@ const arr = (v) => Array.isArray(v) ? v : (v ? [v] : []);
 export default function Train(){
   const { id } = useParams();
   const navigate = useNavigate();
-  const { logout } = useAuth(); // (unused here but available)
+  const { logout } = useAuth(); // available if you add a top-right menu later
 
   const [loading, setLoading] = useState(true);
   const [sc, setSc] = useState(null);
@@ -137,16 +235,41 @@ export default function Train(){
   const [answers, setAnswers] = useState({});
   const [submitted, setSubmitted] = useState(false);
 
+  const review = isReviewMode();
+  const hasSavedReview = (() => {
+    try { return !!localStorage.getItem(reviewKey(id)); } catch { return false; }
+  })();
+
   useEffect(()=>{
     let live = true;
-    fetchScenarioDetail(id).then(d => { if(live){ setSc(d); setLoading(false); }});
+    fetchScenarioDetail(id).then(d => {
+      if(!live) return;
+      setSc(d);
+      setLoading(false);
+
+      // Hydrate saved answers in review mode (locks the UI)
+      if (review) {
+        try {
+          const saved = JSON.parse(localStorage.getItem(reviewKey(d.id)) || "null");
+          if (saved?.answers) {
+            setAnswers(saved.answers);
+            setSubmitted(true);
+          }
+        } catch {}
+      }
+    });
     return () => { live = false; };
-  },[id]);
+  },[id, review]);
 
   const allQs = useMemo(() => sc ? sc.sections.flatMap(s => s.questions) : [], [sc]);
 
+  // Max possible score = sum of scores for all "correct" options (supports multi-correct)
   const maxScore = useMemo(() =>
-    allQs.reduce((sum,q)=>sum+Math.max(...q.options.map(o=>o.score)),0)
+    allQs.reduce((sum,q)=>
+      sum + q.options
+        .filter(o=>o.kind==="correct")
+        .reduce((s,o)=>s + (Number(o.score)||0), 0)
+    ,0)
   ,[allQs]);
 
   // sum of scores of all selected options
@@ -155,7 +278,7 @@ export default function Train(){
       const picks = arr(answers[q.id]);
       if (!picks.length) return sum;
       const pickedOptions = q.options.filter(o => picks.includes(o.id));
-      return sum + pickedOptions.reduce((s,o)=>s + (o.score ?? 0), 0);
+      return sum + pickedOptions.reduce((s,o)=>s + (Number(o.score) || 0), 0);
     },0)
   ,[answers, allQs]);
 
@@ -193,14 +316,28 @@ export default function Train(){
         return { ...prev, [qid]: [...cur, oid] };
       }
 
-      // at cap already: replace earliest selected with new (keeps UX simple)
+      // at cap: replace oldest with new (keeps UX simple)
       const next = [...cur.slice(1), oid];
       return { ...prev, [qid]: next };
     });
   };
 
-  const submit = () => { setSubmitted(true); window.scrollTo({ top: 0, behavior: "smooth" }); };
-  const restart = () => { setAnswers({}); setSubmitted(false); };
+  const submit = () => {
+    setSubmitted(true);
+    // Persist for Employee page detection + review mode
+    try {
+      localStorage.setItem(
+        reviewKey(sc.id),
+        JSON.stringify({
+          answers,
+          score,
+          maxScore,
+          completedAt: new Date().toISOString(),
+        })
+      );
+    } catch {}
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   if (loading) {
     return (
@@ -220,6 +357,50 @@ export default function Train(){
   }
   if (!sc) return null;
 
+  // If user opened /train/:id?review=1 but no saved attempt exists
+  if (review && !hasSavedReview) {
+    return (
+      <div className="trainX">
+        <div className="bg-blob t-a"/><div className="bg-blob t-b"/><div className="bg-blob t-c"/>
+        <div className="container">
+          <div className="header glass" style={{justifyContent:"space-between"}}>
+            <button className="btn-ghost" onClick={()=>navigate("/employee")}>
+              <span className="ico"><IconBack/></span> Back
+            </button>
+            <div className="head-mid">
+              <div className="spark" style={{background:`linear-gradient(135deg, ${sc.color.from}, ${sc.color.to})`}}>
+                <IconSpark/>
+              </div>
+              <div className="head-txt">
+                <h1 className="h-title">{sc.title}</h1>
+                <p className="h-sub">{sc.tags.join(" • ")} • {sc.est}</p>
+              </div>
+              <span className="pill">{sc.difficulty}</span>
+            </div>
+            <div />
+          </div>
+
+          <div className="layout">
+            <main className="main glass" style={{padding:"24px"}}>
+              <h3 style={{marginTop:0}}>No saved attempt to review</h3>
+              <p className="muted" style={{marginBottom:16}}>
+                Start the test first, submit your answers, and then you can review them here.
+              </p>
+              <button
+                className="btn-glow"
+                style={{background:`linear-gradient(90deg, ${sc.color.from}, ${sc.color.to})`, maxWidth:240}}
+                onClick={()=>navigate(`/train/${id}`)}  // same page, without ?review=1
+              >
+                <span className="shine"/>
+                Start test
+              </button>
+            </main>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // verdict for a question after submit (correct/partial/incorrect/none)
   const verdictFor = (q) => {
     if (!submitted) return null;
@@ -227,7 +408,6 @@ export default function Train(){
     if (!picks.length) return "none";
 
     const correctIds = new Set(getCorrectIds(q));
-    const pickedSet  = new Set(picks);
     const pickedCorrectCount = picks.filter(id => correctIds.has(id)).length;
     const pickedIncorrect    = picks.some(id => !correctIds.has(id));
 
@@ -322,9 +502,8 @@ export default function Train(){
                 <div className="r-score">{score} / {maxScore}</div>
                 <div className="r-pct">{scorePct}%</div>
                 <div className="r-actions">
-                  <button className="btn-ghost" onClick={restart}>Restart</button>
-                  <button className="btn-ghost" onClick={()=>navigate("/employee")}>Back to list</button>
-                </div>
+                <button className="btn-ghost" onClick={()=>navigate("/employee")}>Back to list</button>
+              </div>
               </div>
             )}
           </aside>
@@ -396,14 +575,14 @@ export default function Train(){
                         })}
                       </div>
 
-                      {q.hint && !submitted && <div className="hint">Hint: {q.hint}</div>}
+                      {/* Hint removed by request */}
                       {submitted && (
                         <div className="post">
                           <span className="tag">
                             Your score for this question:&nbsp;
                             {q.options
                               .filter(o=>arr(answers[q.id]).includes(o.id))
-                              .reduce((s,o)=>s+(o.score??0),0)}
+                              .reduce((s,o)=>s+(Number(o.score)||0),0)}
                           </span>
                         </div>
                       )}
