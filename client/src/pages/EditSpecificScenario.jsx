@@ -1,7 +1,7 @@
-// src/pages/ViewSpecificScenario.jsx
+// src/pages/EditSpecificScenario.jsx
 import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
-import "./ViewSpecificScenario.css";
+import "./EditSpecificScenario.css";
 
 const mockScenarios = [
   {
@@ -54,14 +54,15 @@ const mockScenarios = [
   },
 ];
 
-export default function ViewSpecificScenario() {
+export default function EditSpecificScenario() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [scenario, setScenario] = useState(null);
+  const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     const found = mockScenarios.find((s) => s.id === id);
-    setScenario(found || null);
+    setScenario(found ? { ...found } : null);
   }, [id]);
 
   if (!scenario) {
@@ -76,6 +77,12 @@ export default function ViewSpecificScenario() {
       </div>
     );
   }
+
+  const handleSave = () => {
+    console.log("Saving scenario:", scenario);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  };
 
   return (
     <div className="admin-root">
@@ -92,42 +99,95 @@ export default function ViewSpecificScenario() {
           </div>
 
           <div className="row gap">
-            <button className="btn-outlined" onClick={() => navigate("/admin/scenarios")}>
-              ← Back
+            <button className="btn-outlined" onClick={() => navigate(`/admin/scenario/${id}`)}>
+              ← Back to view
             </button>
-            <button className="btn-outlined" onClick={() => navigate(`/admin/scenario/${id}/edit`)}>
-              ✏️ Edit Scenario
+            <button className="btn-primary" onClick={handleSave}>
+              {saved ? "Saved ✅" : "Save changes"}
             </button>
-            <button className="btn-primary" onClick={() => navigate(`/admin/scenario/${id}/create-incident`)}>
-              + Create Incident
-            </button>
-            <button className="btn-outlined" onClick={() => navigate(`/admin/scenario/${id}/incidents`)} >
-            View Incidents
-            </button>
-
           </div>
         </div>
       </div>
 
       <div className="container create-wrap">
-        <h1 className="page-title">{scenario.title}</h1>
-        <p className="page-subtitle">View detailed scenario information.</p>
+        <h1 className="page-title">Edit Scenario</h1>
+        <p className="page-subtitle">Modify metadata, questions, and scoring.</p>
 
         <div className="panel">
           <h3 className="panel-title">Scenario details</h3>
-          <div><b>Risk:</b> {scenario.risk}</div>
-          <div><b>Description:</b> {scenario.description}</div>
+
+          <div className="form-row">
+            <label>Title</label>
+            <input
+              className="input"
+              value={scenario.title}
+              onChange={(e) => setScenario({ ...scenario, title: e.target.value })}
+            />
+          </div>
+
+          <div className="form-row">
+            <label>Risk</label>
+            <select
+              className="input"
+              value={scenario.risk}
+              onChange={(e) => setScenario({ ...scenario, risk: e.target.value })}
+            >
+              <option>Low</option>
+              <option>Medium</option>
+              <option>High</option>
+            </select>
+          </div>
+
+          <div className="form-row">
+            <label>Description</label>
+            <textarea
+              className="input"
+              rows={3}
+              value={scenario.description}
+              onChange={(e) => setScenario({ ...scenario, description: e.target.value })}
+            />
+          </div>
         </div>
 
         <div className="panel">
           <h3 className="panel-title">Questions</h3>
           {scenario.questions.map((q, qi) => (
             <div key={q.id} className="q-card">
-              <b>Q{qi + 1}:</b> {q.text}
+              <b>Q{qi + 1}</b>
+              <input
+                className="input"
+                value={q.text}
+                onChange={(e) => {
+                  const updated = [...scenario.questions];
+                  updated[qi].text = e.target.value;
+                  setScenario({ ...scenario, questions: updated });
+                }}
+              />
               <ul>
-                {q.options.map((o) => (
+                {q.options.map((o, oi) => (
                   <li key={o.id}>
-                    <span>{o.text}</span> — <i>{o.kind}</i>
+                    <input
+                      className="input small"
+                      value={o.text}
+                      onChange={(e) => {
+                        const updated = [...scenario.questions];
+                        updated[qi].options[oi].text = e.target.value;
+                        setScenario({ ...scenario, questions: updated });
+                      }}
+                    />
+                    <select
+                      className="input small"
+                      value={o.kind}
+                      onChange={(e) => {
+                        const updated = [...scenario.questions];
+                        updated[qi].options[oi].kind = e.target.value;
+                        setScenario({ ...scenario, questions: updated });
+                      }}
+                    >
+                      <option value="correct">correct</option>
+                      <option value="incorrect">incorrect</option>
+                      <option value="partial">partial</option>
+                    </select>
                   </li>
                 ))}
               </ul>

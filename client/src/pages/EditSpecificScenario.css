@@ -1,0 +1,16 @@
+/* src/pages/EditSpecificScenario.css */
+@import "./CreateScenario.css";
+
+/* Specifikke justeringer til Edit-mode */
+.page-title {
+  margin-bottom: 6px;
+}
+.page-subtitle {
+  color: var(--muted);
+  margin-bottom: 20px;
+}
+
+.flash.ok {
+  background: rgba(22, 199, 132, 0.12);
+  border: 1px solid rgba(22, 199, 132, 0.45);
+}
