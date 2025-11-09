@@ -25,6 +25,13 @@ public class ResponseController : BaseApiController
 
     }
 
+    [HttpPost("bulk")]
+    public async Task<ActionResult<int>> CreateResponsesBulk([FromBody] CreateResponsesBulk.Command command)
+    {
+        var count = await Mediator.Send(command);
+        return Ok(new { createdCount = count });
+    }
+
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteResponse(Guid id)
     {
@@ -33,10 +40,13 @@ public class ResponseController : BaseApiController
     }
 
     [HttpPut("{id}")]
-    public async Task<IActionResult> EditQuestion(Guid id, [FromBody] EditQuestion.Command command)
+    public async Task<IActionResult> EditResponse(Guid id, [FromBody] Response response)
     {
-        command.Id = id;
-
+        var command = new EditResponse.Command 
+        { 
+            Id = id, 
+            Response = response 
+        };
         await Mediator.Send(command);
         return NoContent();
     }

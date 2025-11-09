@@ -17,5 +17,11 @@ public class EvaluationController : BaseApiController
     {
         return await Mediator.Send(new GetEvaluationList.Query());
     }
+
+    [HttpGet("incident/{incidentId}")]
+    public async Task<ActionResult<List<Evaluation>>> GetEvaluationsByIncident(Guid incidentId)
+    {
+        return await Mediator.Send(new GetEvaluationsByIncident.Query { IncidentId = incidentId });
+    }
    
 }

@@ -9,7 +9,11 @@ public class DbInitializer
 {
     public static async Task SeedData(AppDbContext context)
     {
-        // only seed if no scenarios exist
+        // Check if data already exists
+        if (await context.Scenarios.AnyAsync())
+        {
+            return; // Data already seeded
+        }
 
         //
         // 1️⃣ Seed Roles

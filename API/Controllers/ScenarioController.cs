@@ -22,16 +22,14 @@ public class ScenariosController : BaseApiController
 
     //specific Scenario
     [HttpGet("{id}")]
-
-    public async Task<ActionResult<Question>> GetQuestionDetails(string id)
+    public async Task<ActionResult<Scenario>> GetScenarioDetails(string id)
     {
-
-        var question = await Mediator.Send(new GetQuestionDetails.Query { Id = id });
-
-        if (question is null)
+        var scenario = await Mediator.Send(new GetScenarioDetails.Query { Id = id });
+        
+        if (scenario is null)
             return NotFound();
-
-        return Ok(question);
+        
+        return Ok(scenario);
     }
 
     [HttpPost]
