@@ -10,6 +10,7 @@ public class CreateIncident
     public class Command : IRequest<string>
     {
         public Guid ScenarioId { get; set; }
+        public required string Title { get; set; }
         public IncidentStatus Status { get; set; }
         public DateTime? StartedAt { get; set; }
         public DateTime? CompletedAt { get; set; }
@@ -21,6 +22,7 @@ public class CreateIncident
         {
             var incident = new Incident
             {
+                Title = request.Title,
                 ScenarioId = request.ScenarioId,
                 Status = request.Status,
                 StartedAt = request.StartedAt,

@@ -1,15 +1,37 @@
 // src/pages/ViewScenario.jsx
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import api from "../services/api";
 import "./ViewScenario.css";
 
-async function fetchScenarios() {
-  await new Promise(r => setTimeout(r, 300));
-  return [
-    { id:"scn-001", title:"Ransomware Detected", risk:"Medium", tags:["Security","IR"], est:"15–20 min", maxScore:50, sections:2, questions:5, updatedAt:"2025-10-20T14:12:00Z" },
-    { id:"scn-002", title:"Phishing Attack on Email", risk:"Low",    tags:["Email","Awareness"], est:"10–15 min", maxScore:40, sections:1, questions:4, updatedAt:"2025-10-18T10:04:00Z" },
-    { id:"scn-003", title:"Data Breach — S3 Bucket",  risk:"High",   tags:["Cloud","S3","Security"], est:"20–25 min", maxScore:60, sections:2, questions:6, updatedAt:"2025-10-17T08:30:00Z" },
-  ];
+const RISK_LABELS = {
+  0: "Low",
+  1: "Medium",
+  2: "High",
+  3: "Extreme",
+};
+
+function normaliseScenario(raw) {
+  const id = raw?.id ?? raw?.Id ?? crypto.randomUUID();
+  const riskValue = raw?.risk ?? raw?.Risk;
+  const riskLabel =
+    typeof riskValue === "string"
+      ? riskValue.charAt(0).toUpperCase() + riskValue.slice(1)
+      : RISK_LABELS[riskValue] ?? "Unknown";
+
+  const questions = raw?.questions ?? raw?.Questions;
+  const incidents = raw?.incidents ?? raw?.Incidents;
+
+  const lastUpdated = raw?.updatedAt ?? raw?.UpdatedAt ?? raw?.createdAt ?? raw?.CreatedAt ?? null;
+
+  return {
+    id,
+    title: raw?.title ?? raw?.Title ?? "Untitled scenario",
+    risk: riskLabel,
+    lastUpdated,
+    questionCount: Array.isArray(questions) ? questions.length : 0,
+    incidentCount: Array.isArray(incidents) ? incidents.length : 0,
+  };
 }
 
 export default function ViewScenario() {
@@ -18,29 +40,53 @@ export default function ViewScenario() {
   const [scenarios, setScenarios] = useState([]);
   const [query, setQuery] = useState("");
   const [flash, setFlash] = useState(null);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     let live = true;
-    fetchScenarios().then(list => {
-      if (!live) return;
-      setScenarios(list);
-      setLoading(false);
-    });
-    return () => { live = false; };
+
+    async function load() {
+      setLoading(true);
+      try {
+        setError(null);
+        const { data } = await api.get("/api/scenarios");
+        if (!live) return;
+        const list = Array.isArray(data) ? data.map(normaliseScenario) : [];
+        setScenarios(list);
+      } catch (err) {
+        console.error("Failed to fetch scenarios", err);
+        if (!live) return;
+        setScenarios([]);
+        setError("Could not load scenarios. Please try again.");
+      } finally {
+        if (live) setLoading(false);
+      }
+    }
+
+    load();
+    return () => {
+      live = false;
+    };
   }, []);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return scenarios.filter(s =>
-      !q || s.title.toLowerCase().includes(q) || s.tags.join(" ").toLowerCase().includes(q)
-    );
+    return scenarios.filter((s) => !q || s.title.toLowerCase().includes(q));
   }, [scenarios, query]);
 
-  const remove = (id) => {
+  const remove = async (id) => {
     if (!confirm("Are you sure you want to delete this scenario?")) return;
-    setScenarios(prev => prev.filter(s => s.id !== id));
-    setFlash({ type:"ok", text:"Scenario deleted successfully." });
-    setTimeout(() => setFlash(null), 1200);
+
+    try {
+      await api.delete(`/api/scenarios/${id}`);
+      setScenarios((prev) => prev.filter((s) => s.id !== id));
+      setFlash({ type: "ok", text: "Scenario deleted successfully." });
+    } catch (err) {
+      console.error("Failed to delete scenario", err);
+      setFlash({ type: "err", text: "Failed to delete scenario." });
+    } finally {
+      setTimeout(() => setFlash(null), 1600);
+    }
   };
 
   return (
@@ -57,9 +103,13 @@ export default function ViewScenario() {
             <span className="brand-name">AdminPro</span>
           </div>
 
-          <div style={{display:"flex",gap:8}}>
-            <button className="btn-outlined" onClick={()=>navigate("/admin")}>← Back to dashboard</button>
-            <button className="btn-primary" onClick={()=>navigate("/admin/scenario/create")}>+ Create new scenario</button>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button className="btn-outlined" onClick={() => navigate("/admin")}>
+              ← Back to dashboard
+            </button>
+            <button className="btn-primary" onClick={() => navigate("/admin/scenario/create")}>
+              + Create new scenario
+            </button>
           </div>
         </div>
       </div>
@@ -69,13 +119,14 @@ export default function ViewScenario() {
         <p className="page-subtitle">View and manage all incident response scenarios.</p>
 
         {flash && <div className={`flash ${flash.type}`}>{flash.text}</div>}
+        {error && <div className="flash err">{error}</div>}
 
         <div className="filters">
           <input
             className="input"
             placeholder="Search scenario…"
             value={query}
-            onChange={e=>setQuery(e.target.value)}
+            onChange={(e) => setQuery(e.target.value)}
           />
         </div>
 
@@ -88,36 +139,42 @@ export default function ViewScenario() {
             <div className="vs-head">
               <div className="c c1">Title</div>
               <div className="c c2">Risk</div>
-              <div className="c c3">Updated</div>
+              <div className="c c3">Created</div>
               <div className="c c4">Actions</div>
             </div>
 
-            {filtered.map(s => (
+            {filtered.map((s) => (
               <div className="vs-row" key={s.id}>
-                <div className="c c1">{s.title}</div>
-                <div className="c c2"><span className="pill">{s.risk}</span></div>
-                <div className="c c3"><div className="muted tiny">{new Date(s.updatedAt).toLocaleString()}</div></div>
+                <div className="c c1">
+                  <div>{s.title}</div>
+                  <div className="muted tiny">
+                    {s.questionCount} questions • {s.incidentCount} incidents
+                  </div>
+                </div>
+                <div className="c c2">
+                  <span className="pill">{s.risk}</span>
+                </div>
+                <div className="c c3">
+                  <div className="muted tiny">
+                    {s.lastUpdated ? new Date(s.lastUpdated).toLocaleString() : "—"}
+                  </div>
+                </div>
                 <div className="c c4">
-  <button
-    className="btn-ghost"
-    onClick={() => navigate(`/admin/scenario/${s.id}`)}
-  >
-    View
-  </button>
+                  <button className="btn-ghost" onClick={() => navigate(`/admin/scenario/${s.id}`)}>
+                    View
+                  </button>
 
-  <button className="btn-ghost" onClick={() => navigate(`/admin/scenario/${s.id}/incidents`)}>
-  View incidents
-</button>
+                  <button
+                    className="btn-ghost"
+                    onClick={() => navigate(`/admin/scenario/${s.id}/incidents`)}
+                  >
+                    View incidents
+                  </button>
 
-
-  <button
-    className="btn-ghost"
-    onClick={() => remove(s.id)}
-  >
-    Delete
-  </button>
-</div>
-
+                  <button className="btn-ghost" onClick={() => remove(s.id)}>
+                    Delete
+                  </button>
+                </div>
               </div>
             ))}
           </div>

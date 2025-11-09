@@ -1,8 +1,10 @@
 // src/pages/ViewSpecificIncident.jsx
 import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
+// fjernet de her to fordi de skaber problemer
+// fjernet de her to fordi de skaber problemer import jsPDF from "jspdf";
+
+// fjernet de her to fordi de skaber problemer import autoTable from "jspdf-autotable";
 import "./ViewSpecificIncident.css";
 
 export default function ViewSpecificIncident() {

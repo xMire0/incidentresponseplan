@@ -22,6 +22,7 @@
   max-width: 1120px;
   margin: 0 auto;
   padding: 0 24px;
+  margin-top: 100px;
 }
 .admin-root {
   background: var(--bg);

@@ -26,6 +26,8 @@ public class GetScenarioDetails
                 .Include(s => s.Questions)
                     .ThenInclude(q => q.QuestionRoles)
                         .ThenInclude(qr => qr.Role)
+                .Include(s => s.Incidents)
+                    .ThenInclude(i => i.Responses)
                 .FirstOrDefaultAsync(s => s.Id == guid, cancellationToken);
         }
     }

@@ -32,6 +32,14 @@ public class ScenariosController : BaseApiController
         return Ok(scenario);
     }
 
+    [HttpGet("{id}/incidents")]
+    public async Task<ActionResult<List<Incident>>> GetScenarioIncidents(string id)
+    {
+        var incidents = await Mediator.Send(new GetIncidentsByScenario.Query { ScenarioId = id });
+
+        return Ok(incidents);
+    }
+
     [HttpPost]
 
     public async Task<ActionResult<string>> CreateScenario(Scenario scenario)

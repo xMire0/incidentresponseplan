@@ -1,92 +1,124 @@
 // src/pages/ViewIncidents.jsx
 import { useNavigate, useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
+import api from "../services/api";
 import "./ViewIncidents.css";
+
+const STATUS_ENUM = {
+  0: "NotStarted",
+  1: "InProgress",
+  2: "Completed",
+};
+
+const STATUS_PILLS = {
+  NotStarted: "amber",
+  InProgress: "blue",
+  Completed: "green",
+};
+
+function normaliseIncident(raw) {
+  if (!raw) return null;
+  const statusValue = raw.status ?? raw.Status;
+  const statusKey =
+    typeof statusValue === "string"
+      ? statusValue
+      : STATUS_ENUM[statusValue] ?? "Unknown";
+  const status = humaniseStatus(statusKey);
+
+  const startedAt = raw.startedAt ?? raw.StartedAt ?? null;
+  const completedAt = raw.completedAt ?? raw.CompletedAt ?? null;
+
+  const responses = Array.isArray(raw.responses ?? raw.Responses)
+    ? (raw.responses ?? raw.Responses).map((r) => ({
+        id: r.id ?? r.Id ?? ensureId(null, "response"),
+        question: r.question?.text ?? r.Question?.Text ?? "Unknown question",
+        role: r.role?.name ?? r.Role?.Name ?? "Unknown role",
+        weight: r.weight ?? r.Weight ?? 0,
+        createdAt: r.createdAt ?? r.CreatedAt ?? null,
+      }))
+    : [];
+
+  return {
+    title: raw.title ?? raw.Title ?? "Untitled incident",
+    id: ensureId(raw.id ?? raw.Id, "incident"),
+    statusKey,
+    status,
+    startedAt,
+    completedAt,
+    responses,
+  };
+}
+
+function ensureId(value, prefix) {
+  if (value) return value;
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function humaniseStatus(key) {
+  if (!key) return "Unknown";
+  const lookup = {
+    NotStarted: "Not started",
+    InProgress: "In progress",
+    Completed: "Completed",
+  };
+  if (lookup[key]) return lookup[key];
+  // fallback: split camel case
+  return key.replace(/([a-z])([A-Z])/g, "$1 $2");
+}
 
 export default function ViewIncidents() {
   const navigate = useNavigate();
   const { id } = useParams(); // scenario ID
   const [loading, setLoading] = useState(true);
   const [scenario, setScenario] = useState(null);
-
-  // --- MOCK DATA (kan senere udskiftes med API fra .NET backend) ---
-  const mockData = {
-    "scn-001": {
-      id: "scn-001",
-      title: "Ransomware Detected",
-      risk: "Medium",
-      incidents: [
-        {
-          id: "inc-001",
-          title: "Incident — October 2025",
-          date: "2025-10-21T09:30:00Z",
-          status: "Completed",
-          score: "42/50 (84%)",
-          result: "Pass",
-        },
-        {
-          id: "inc-002",
-          title: "Incident — September 2025",
-          date: "2025-09-17T15:10:00Z",
-          status: "Completed",
-          score: "35/50 (70%)",
-          result: "Pass",
-        },
-      ],
-    },
-    "scn-002": {
-      id: "scn-002",
-      title: "Phishing Attack on Email",
-      risk: "Low",
-      incidents: [
-        {
-          id: "inc-003",
-          title: "Incident — October 2025",
-          date: "2025-10-18T10:00:00Z",
-          status: "Active",
-          score: "Pending",
-          result: "Pending",
-        },
-      ],
-    },
-  };
-  // ------------------------------------------------------------------
+  const [incidents, setIncidents] = useState([]);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    setLoading(true);
-    setTimeout(() => {
-      const found = mockData[id];
-      setScenario(found || null);
-      setLoading(false);
-    }, 400);
+    let live = true;
+
+    async function load() {
+      setLoading(true);
+      try {
+        setError(null);
+
+        const [scenarioRes, incidentsRes] = await Promise.all([
+          api.get(`/api/scenarios/${id}`),
+          api.get(`/api/scenarios/${id}/incidents`),
+        ]);
+
+        if (!live) return;
+
+        setScenario(scenarioRes.data ?? null);
+        const list = Array.isArray(incidentsRes.data)
+          ? incidentsRes.data.map(normaliseIncident)
+          : [];
+        setIncidents(list);
+      } catch (err) {
+        console.error("Failed to load incidents", err);
+        if (!live) return;
+        setError("Could not load incidents for this scenario.");
+        setScenario(null);
+        setIncidents([]);
+      } finally {
+        if (live) setLoading(false);
+      }
+    }
+
+    if (id) load();
+
+    return () => {
+      live = false;
+    };
   }, [id]);
 
-  if (loading) {
-    return (
-      <div className="admin-root">
-        <div className="container">
-          <div className="skeleton-panel" />
-        </div>
-      </div>
-    );
-  }
-
-  if (!scenario) {
-    return (
-      <div className="admin-root">
-        <div className="container">
-          <p>Scenario not found.</p>
-          <button className="btn-outlined" onClick={() => navigate("/admin/scenarios")}>
-            ← Back
-          </button>
-        </div>
-      </div>
-    );
-  }
+  const statusClass = (statusKey) => STATUS_PILLS[statusKey] ?? "muted";
 
   return (
     <div className="admin-root">
-      {/* Topbar */}
       <div className="admin-topbar">
         <div className="admin-topbar-inner">
           <div className="brand">
@@ -107,56 +139,96 @@ export default function ViewIncidents() {
       </div>
 
       <div className="container">
-        <h1 className="page-title">
-          {scenario.title} — Incidents
-        </h1>
-        <p className="page-subtitle">
-          View all recorded incidents for this scenario.
-        </p>
-
-        {scenario.incidents.length === 0 ? (
-          <div className="empty">No incidents found for this scenario.</div>
-        ) : (
-          <div className="incidents-table">
-            <div className="incidents-head">
-              <div className="c c1">Title</div>
-              <div className="c c2">Status</div>
-              <div className="c c3">Score</div>
-              <div className="c c4">Date</div>
-              <div className="c c5">Actions</div>
-            </div>
-
-            {scenario.incidents.map((inc) => (
-              <div className="incidents-row" key={inc.id}>
-                <div className="c c1">{inc.title}</div>
-                <div className="c c2">
-                  <span
-                    className={`pill ${
-                      inc.status === "Completed"
-                        ? "green"
-                        : inc.status === "Active"
-                        ? "amber"
-                        : "red"
-                    }`}
-                  >
-                    {inc.status}
-                  </span>
-                </div>
-                <div className="c c3">{inc.score}</div>
-                <div className="c c4">
-                  {new Date(inc.date).toLocaleDateString("en-GB")}
-                </div>
-                <div className="c c5">
-                  <button
-                    className="btn-ghost"
-                    onClick={() => navigate(`/admin/incident/${inc.id}`)}
-                  >
-                    View details
-                  </button>
-                </div>
-              </div>
-            ))}
+        {loading ? (
+          <div className="skeleton-panel" />
+        ) : error ? (
+          <div className="panel">
+            <h3 className="panel-title">Error</h3>
+            <p>{error}</p>
+            <button className="btn-outlined" onClick={() => navigate("/admin/scenarios")}>
+              ← Back
+            </button>
           </div>
+        ) : !scenario ? (
+          <div className="panel">
+            <h3 className="panel-title">Scenario not found</h3>
+            <button className="btn-outlined" onClick={() => navigate("/admin/scenarios")}>
+              ← Back
+            </button>
+          </div>
+        ) : (
+          <>
+            <h1 className="page-title">
+              {scenario.title ?? scenario.Title} — Incidents
+            </h1>
+            <p className="page-subtitle">View all recorded incidents for this scenario.</p>
+
+            {incidents.length === 0 ? (
+              <div className="empty">No incidents found for this scenario.</div>
+            ) : (
+              <div className="incidents-table">
+                <div className="incidents-head">
+                  <div className="c c1">Title</div>
+                  <div className="c c2">Status</div>
+                  <div className="c c3">Started</div>
+                  <div className="c c4">Completed</div>
+                  <div className="c c5">Responses</div>
+                  <div className="c c6">Actions</div>
+                </div>
+
+                {incidents.map((inc) => (
+                  <div className="incidents-row" key={inc.id}>
+                    <div className="c c1">
+                      <div className="row">
+                        <div>
+                          <b>{inc.title}</b>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="c c2">
+                      <span className={`pill ${statusClass(inc.statusKey)}`}>{inc.status}</span>
+                    </div>
+                    <div className="c c3">
+                      {inc.startedAt ? new Date(inc.startedAt).toLocaleString() : "—"}
+                    </div>
+                    <div className="c c4">
+                      {inc.completedAt ? new Date(inc.completedAt).toLocaleString() : "—"}
+                    </div>
+                    <div className="c c5">
+                      {inc.responses.length === 0 ? (
+                        <span className="muted tiny">No responses yet</span>
+                      ) : (
+                        <details>
+                          <summary>{inc.responses.length} responses</summary>
+                          <ul>
+                            {inc.responses.map((r) => (
+                              <li key={r.id}>
+                                <div>
+                                  <b>{r.role}</b>: {r.question}
+                                </div>
+                                <div className="muted tiny">
+                                  Weight {r.weight} •{" "}
+                                  {r.createdAt ? new Date(r.createdAt).toLocaleString() : "—"}
+                                </div>
+                              </li>
+                            ))}
+                          </ul>
+                        </details>
+                      )}
+                    </div>
+                    <div className="c c6">
+                      <button
+                        className="btn-ghost"
+                        onClick={() => navigate(`/admin/incident/${inc.id}`)}
+                      >
+                        View details
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

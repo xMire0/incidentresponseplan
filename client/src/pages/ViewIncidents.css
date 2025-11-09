@@ -40,7 +40,7 @@
 .incidents-head,
 .incidents-row {
   display: grid;
-  grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
+  grid-template-columns: 2.2fr 1fr 1fr 1fr 1.6fr 1fr;
   align-items: center;
   padding: 12px 18px;
 }
@@ -72,6 +72,12 @@
   background: rgba(22, 199, 132, 0.18);
   border-color: rgba(22, 199, 132, 0.5);
   color: #d7ffe9;
+}
+
+.pill.blue {
+  background: rgba(59, 130, 246, 0.18);
+  border-color: rgba(59, 130, 246, 0.5);
+  color: #dbeafe;
 }
 
 .pill.amber {
