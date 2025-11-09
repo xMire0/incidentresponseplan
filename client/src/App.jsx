@@ -8,6 +8,17 @@ import AdminResults from "./pages/ViewResults.jsx";
 import CreateScenario from "./pages/CreateScenario.jsx";
 import GenerateReport from "./pages/GenerateReport.jsx";
 import ViewScenario from "./pages/ViewScenario.jsx";
+import ViewSpecificScenario from "./pages/ViewSpecificScenario.jsx";
+import ViewSpecificIncident from "./pages/ViewSpecificIncident.jsx";
+import ViewScenarioResults from "./pages/ViewScenarioResults.jsx";
+import EditSpecificScenario from "./pages/EditSpecificScenario.jsx";
+import CreateIncident from "./pages/CreateIncident.jsx";
+import ViewIncidents from "./pages/ViewIncidents.jsx";
+
+
+
+
+
 
 export default function App() {
   const { pathname } = useLocation();
@@ -42,6 +53,20 @@ export default function App() {
         <Route path="/train/:id" element={<Train />} />
         <Route path="/admin/reports" element={<GenerateReport />} />
         <Route path="/admin/scenarios" element={<ViewScenario />} />
+        <Route path="/admin/scenario/create" element={<CreateScenario />} />
+        <Route path="/admin/scenario/:id" element={<ViewSpecificScenario />} />
+        <Route path="/admin/incident/:id" element={<ViewSpecificIncident />} />
+        <Route path="/admin/scenario/:id/results" element={<ViewScenarioResults />} />
+        <Route path="/admin/scenario/:id/edit" element={<EditSpecificScenario />} />
+        <Route path="/admin/scenario/:id/create-incident" element={<CreateIncident />} />
+        <Route path="/admin/scenario/:id/incidents" element={<ViewIncidents />} />
+
+
+
+
+
+
+
 
         {/* Fallback → Login */}
         <Route path="*" element={<Navigate to="/login" replace />} />

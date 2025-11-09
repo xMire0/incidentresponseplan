@@ -1,0 +1,25 @@
+.admin-root { background:#0b0f16; color:#e9eef5; min-height:100vh; }
+.container { max-width:1100px; margin:0 auto; padding:20px; }
+.page-title { font-size:32px; font-weight:800; margin-bottom:4px; }
+.page-subtitle { color:#9aa5b1; margin-bottom:18px; }
+.panel { background:#141826; border:1px solid rgba(255,255,255,.1); border-radius:14px; padding:20px; }
+
+.result-table { width:100%; border-collapse:collapse; }
+.result-table th, .result-table td {
+  text-align:left; padding:10px; border-bottom:1px solid rgba(255,255,255,.08);
+}
+.pill { padding:4px 10px; border-radius:999px; font-size:13px; }
+.pill.pass { background:rgba(22,199,132,.18); color:#d7ffe9; }
+.pill.fail { background:rgba(239,68,68,.18); color:#ffe0e0; }
+.btn-ghost {
+  border:1px solid rgba(255,255,255,.15);
+  background:transparent; color:#d5dbea;
+  border-radius:10px; padding:6px 10px;
+  cursor:pointer;
+}
+.btn-outlined {
+  border:1px solid rgba(255,255,255,.2);
+  background:transparent; color:#fff;
+  padding:6px 12px; border-radius:10px;
+  cursor:pointer;
+}

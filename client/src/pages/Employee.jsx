@@ -1,3 +1,4 @@
+// src/pages/Employee.jsx
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -12,18 +13,21 @@ const THEME = [
 ];
 const pickColor = (i, override) => override ?? THEME[i % THEME.length];
 
+/* LocalStorage key (shared with Train.jsx) */
+const reviewKey = (id) => `train:result:${id}`;
+
 /* Mock “API” – replace later */
 async function fetchScenarios() {
   await new Promise(r => setTimeout(r, 450));
   return [
-    { id:"scn-001", title:"Ransomware Detected", difficulty:"Intermediate", tags:["Security","IR"], est:"15–20 min", progress:0,  published:true },
-    { id:"scn-002", title:"Phishing Attack on Email", difficulty:"Beginner",    tags:["Email","Awareness"], est:"10–15 min", progress:42, published:true },
-    { id:"scn-003", title:"Data Breach – S3 Bucket", difficulty:"Advanced",     tags:["Cloud","Compliance"], est:"25–30 min", progress:0,  published:true },
-    { id:"scn-004", title:"DDoS on Public API",       difficulty:"Intermediate", tags:["Ops","Network"],     est:"15–25 min", progress:73, published:true },
+    { id:"scn-001", title:"Ransomware Detected",     difficulty:"Intermediate", tags:["Security","IR"],        est:"15–20 min", progress:0,   published:true },
+    { id:"scn-002", title:"Phishing Attack on Email",difficulty:"Beginner",     tags:["Email","Awareness"],   est:"10–15 min", progress:42,  published:true },
+    { id:"scn-003", title:"Data Breach – S3 Bucket", difficulty:"Advanced",     tags:["Cloud","Compliance"],  est:"25–30 min", progress:0,   published:true },
+    { id:"scn-004", title:"DDoS on Public API",      difficulty:"Intermediate", tags:["Ops","Network"],       est:"15–25 min", progress:100, published:true }, // one finished to demo
   ];
 }
 
-/* Icons (white, they sit inside colored aura pills) */
+/* Icons */
 const IconLogout = () => (
   <svg viewBox="0 0 24 24" width="18" height="18">
     <path d="M10 7v-2a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-6a2 2 0 0 1-2-2v-2"
@@ -59,16 +63,14 @@ export default function Employee() {
     })()
   );
   const [rawSearch, setRawSearch] = useState(saved.current.q ?? "");
-  const [q, setQ] = useState(saved.current.q ?? "");              // debounced query
+  const [q, setQ] = useState(saved.current.q ?? "");
   const [level, setLevel] = useState(saved.current.level ?? "All");
 
-  // Debounce the search input to reduce re-renders
   useEffect(() => {
     const t = setTimeout(() => setQ(rawSearch), 250);
     return () => clearTimeout(t);
   }, [rawSearch]);
 
-  // Persist UI state
   useEffect(() => {
     localStorage.setItem("emp-ui", JSON.stringify({ q, level }));
   }, [q, level]);
@@ -78,16 +80,33 @@ export default function Employee() {
     let mount = true;
     fetchScenarios().then(list => {
       if (!mount) return;
-      const pub = list.filter(s => s.published).map((s, i) => ({
-        ...s,
-        color: pickColor(i, s.color),
-      }));
+
+      // Inject color + auto-detect completion from localStorage
+      const pub = list
+        .filter(s => s.published)
+        .map((s, i) => {
+          const color = pickColor(i, s.color);
+          let status = s.status;
+          let progress = s.progress;
+
+          try {
+            const saved = JSON.parse(localStorage.getItem(reviewKey(s.id)) || "null");
+            if (saved?.answers) {
+              status = "completed";
+              progress = 100;
+            }
+          } catch {}
+
+          return { ...s, color, status, progress };
+        });
+
       setScenarios(pub);
       setLoading(false);
     });
     return () => { mount = false; };
   }, []);
 
+  // Search + filter (applies to both sections)
   const filtered = useMemo(() => {
     const query = q.trim().toLowerCase();
     return scenarios.filter(s => {
@@ -97,10 +116,22 @@ export default function Employee() {
     });
   }, [q, level, scenarios]);
 
-  const onLogout = () => { logout(); navigate("/login", { replace: true }); };
+  // Split into active vs completed (structure only; visuals unchanged)
+  const { active, completed } = useMemo(() => {
+    const act = [];
+    const comp = [];
+    for (const s of filtered) {
+      const done = s.status === "completed" || s.progress >= 100;
+      (done ? comp : act).push(s);
+    }
+    act.sort((a, b) => (b.progress === 0) - (a.progress === 0)); // in-progress first
+    comp.sort((a, b) => a.title.localeCompare(b.title));
+    return { active: act, completed: comp };
+  }, [filtered]);
 
-  // Navigate to the runner page (optimization #1 already in App.jsx)
+  const onLogout = () => { logout(); navigate("/login", { replace: true }); };
   const startScenario = (s) => navigate(`/train/${s.id}`);
+  const reviewScenario = (s) => navigate(`/train/${s.id}?review=1`); // read-only view
 
   return (
     <div className="empX">
@@ -155,81 +186,158 @@ export default function Employee() {
         </div>
       </div>
 
-      {/* Grid */}
-      <div className="container grid">
-        {loading ? (
-          Array.from({length:3}).map((_,i) => <div className="card skeleton" key={i}/>)
-        ) : filtered.length === 0 ? (
-          <div className="empty">
-            <div className="empty-badge"><IconSpark/></div>
-            <h3>No scenarios found</h3>
-            <p>Try a different search or filter.</p>
-          </div>
-        ) : (
-          filtered.map((s) => (
-            <article className="card" key={s.id}>
-              {/* gradient border */}
-              <span
-                className="card-border"
-                style={{ background: `linear-gradient(135deg, ${s.color.from}, ${s.color.to})` }}
-              />
-              <div className="card-inner">
-                <div className="card-top">
-                  <span
-                    className="aura"
-                    style={{
-                      background: `linear-gradient(135deg, ${s.color.from}, ${s.color.to})`,
-                      boxShadow: `0 8px 28px ${toRgba(s.color.to, .35)}, inset 0 1px 0 rgba(255,255,255,.4)`
-                    }}
-                  >
-                    {/* polished spark icon */}
-                    <svg viewBox="0 0 24 24" width="22" height="22">
-                      <path
-                        d="M12 3l2 5 5 2-5 2-2 5-2-5-5-2 5-2 2-5z"
-                        fill="white"
-                        opacity="0.9"
-                      />
-                      <circle cx="12" cy="12" r="5" fill="url(#gradSpark)" opacity="0.2" />
-                      <defs>
-                        <radialGradient id="gradSpark" cx="0.5" cy="0.5" r="0.5">
-                          <stop offset="0%" stopColor="white" stopOpacity="0.8" />
-                          <stop offset="100%" stopColor="white" stopOpacity="0" />
-                        </radialGradient>
-                      </defs>
-                    </svg>
-                  </span>
-                  <span className="pill">{s.difficulty}</span>
-                </div>
+      {/* === SECTION 1: Begynd / Igangværende tests === */}
+      <div className="container" style={{marginTop: 14}}>
+        <div className="section-head" style={{display:"flex",alignItems:"center",gap:10,margin:"6px 0 10px"}}>
+          <h2 style={{margin:0, fontSize:18, fontWeight:800}}>Begynd / Igangværende tests</h2>
+          <span className="pill" aria-label="count">{active.length}</span>
+        </div>
 
-                <div className="card-body">
-                  <h3 className="card-title">{s.title}</h3>
-                  <p className="card-meta">{s.tags.join(" • ")} • {s.est}</p>
-
-                  <div className={`meter ${s.progress ? "" : "muted"}`}>
+        <div className="grid">
+          {loading ? (
+            Array.from({length:3}).map((_,i) => <div className="card skeleton" key={i}/>)
+          ) : active.length === 0 ? (
+            <div className="empty">
+              <div className="empty-badge"><IconSpark/></div>
+              <h3>Ingen igangværende tests</h3>
+              <p>Start en ny test fra listen ovenfor eller fjern filtre.</p>
+            </div>
+          ) : (
+            active.map((s) => (
+              <article className="card" key={s.id}>
+                <span
+                  className="card-border"
+                  style={{ background: `linear-gradient(135deg, ${s.color.from}, ${s.color.to})` }}
+                />
+                <div className="card-inner">
+                  <div className="card-top">
                     <span
+                      className="aura"
                       style={{
-                        width: `${s.progress}%`,
-                        background: `linear-gradient(90deg, ${s.color.from}, ${s.color.to})`
+                        background: `linear-gradient(135deg, ${s.color.from}, ${s.color.to})`,
+                        boxShadow: `0 8px 28px ${toRgba(s.color.to, .35)}, inset 0 1px 0 rgba(255,255,255,.4)`
                       }}
-                    />
-                    <i>{s.progress ? `${s.progress}%` : "Not started"}</i>
+                    >
+                      <svg viewBox="0 0 24 24" width="22" height="22">
+                        <path d="M12 3l2 5 5 2-5 2-2 5-2-5-5-2 5-2 2-5z" fill="white" opacity="0.9" />
+                        <circle cx="12" cy="12" r="5" fill="url(#gradSpark)" opacity="0.2" />
+                        <defs>
+                          <radialGradient id="gradSpark" cx="0.5" cy="0.5" r="0.5">
+                            <stop offset="0%" stopColor="white" stopOpacity="0.8" />
+                            <stop offset="100%" stopColor="white" stopOpacity="0" />
+                          </radialGradient>
+                        </defs>
+                      </svg>
+                    </span>
+                    <span className="pill">{s.difficulty}</span>
+                  </div>
+
+                  <div className="card-body">
+                    <h3 className="card-title">{s.title}</h3>
+                    <p className="card-meta">{s.tags.join(" • ")} • {s.est}</p>
+
+                    <div className={`meter ${s.progress ? "" : "muted"}`}>
+                      <span
+                        style={{
+                          width: `${s.progress}%`,
+                          background: `linear-gradient(90deg, ${s.color.from}, ${s.color.to})`
+                        }}
+                      />
+                      <i>{s.progress ? `${s.progress}%` : "Not started"}</i>
+                    </div>
+                  </div>
+
+                  <div className="card-actions">
+                    <button
+                      className="btn-glow"
+                      style={{ background: `linear-gradient(90deg, ${s.color.from}, ${s.color.to})` }}
+                      onClick={() => startScenario(s)}
+                    >
+                      <span className="shine" />
+                      {s.progress ? "Continue" : "Start test"}
+                    </button>
                   </div>
                 </div>
+              </article>
+            ))
+          )}
+        </div>
+      </div>
 
-                <div className="card-actions">
-                  <button
-                    className="btn-glow"
-                    style={{ background: `linear-gradient(90deg, ${s.color.from}, ${s.color.to})` }}
-                    onClick={() => startScenario(s)}
-                  >
-                    <span className="shine" />
-                    {s.progress ? "Continue" : "Start test"}
-                  </button>
+      {/* === SECTION 2: Afsluttede tests === */}
+      <div className="container" style={{marginTop: 28, marginBottom: 28}}>
+        <div className="section-head" style={{display:"flex",alignItems:"center",gap:10,margin:"6px 0 10px"}}>
+          <h2 style={{margin:0, fontSize:18, fontWeight:800}}>Afsluttede tests</h2>
+          <span className="pill" aria-label="count">{completed.length}</span>
+        </div>
+
+        <div className="grid">
+          {loading ? (
+            Array.from({length:2}).map((_,i) => <div className="card skeleton" key={i}/>)
+          ) : completed.length === 0 ? (
+            <div className="empty">
+              <div className="empty-badge"><IconSpark/></div>
+              <h3>Ingen afsluttede tests endnu</h3>
+              <p>Når du fuldfører en test, flyttes den hertil automatisk.</p>
+            </div>
+          ) : (
+            completed.map((s) => (
+              <article className="card" key={s.id}>
+                <span
+                  className="card-border"
+                  style={{ background: `linear-gradient(135deg, ${s.color.from}, ${s.color.to})` }}
+                />
+                <div className="card-inner">
+                  <div className="card-top">
+                    <span
+                      className="aura"
+                      style={{
+                        background: `linear-gradient(135deg, ${s.color.from}, ${s.color.to})`,
+                        boxShadow: `0 8px 28px ${toRgba(s.color.to, .35)}, inset 0 1px 0 rgba(255,255,255,.4)`
+                      }}
+                    >
+                      <svg viewBox="0 0 24 24" width="22" height="22">
+                        <path d="M12 3l2 5 5 2-5 2-2 5-2-5-5-2 5-2 2-5z" fill="white" opacity="0.9" />
+                        <circle cx="12" cy="12" r="5" fill="url(#gradSpark)" opacity="0.2" />
+                        <defs>
+                          <radialGradient id="gradSpark" cx="0.5" cy="0.5" r="0.5">
+                            <stop offset="0%" stopColor="white" stopOpacity="0.8" />
+                            <stop offset="100%" stopColor="white" stopOpacity="0" />
+                          </radialGradient>
+                        </defs>
+                      </svg>
+                    </span>
+                    <span className="pill">{s.difficulty}</span>
+                  </div>
+
+                  <div className="card-body">
+                    <h3 className="card-title">{s.title}</h3>
+                    <p className="card-meta">{s.tags.join(" • ")} • {s.est}</p>
+
+                    <div className="meter">
+                      <span
+                        style={{
+                          width: `100%`,
+                          background: `linear-gradient(90deg, ${s.color.from}, ${s.color.to})`
+                        }}
+                      />
+                      <i>100%</i>
+                    </div>
+                  </div>
+
+                  <div className="card-actions">
+                    <button
+                      className="btn-ghost"
+                      onClick={() => reviewScenario(s)}
+                    >
+                      Review
+                    </button>
+                  </div>
                 </div>
-              </div>
-            </article>
-          ))
-        )}
+              </article>
+            ))
+          )}
+        </div>
       </div>
     </div>
   );

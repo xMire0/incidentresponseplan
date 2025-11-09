@@ -1,63 +1,251 @@
-import { useMemo, useState } from "react";
+// src/pages/CreateScenario.jsx
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "./CreateScenario.css";
+
+/* ===== Role catalog (can come from API later) ===== */
+const ROLE_CATALOG = [
+  "Developer",
+  "Security",
+  "IT Ops",
+  "Support",
+  "Sales",
+  "Finance",
+  "HR",
+];
+
+/* ===== Chip-style searchable multi-select for roles ===== */
+function RolePicker({ value = [], onChange }) {
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState("");
+  const ref = useRef(null);
+
+  // close on outside click
+  useEffect(() => {
+    const onDoc = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener("pointerdown", onDoc);
+    return () => document.removeEventListener("pointerdown", onDoc);
+  }, []);
+
+  const selected = new Set(value);
+  const filtered = ROLE_CATALOG.filter((r) =>
+    r.toLowerCase().includes(q.trim().toLowerCase())
+  );
+
+  const toggle = (role) => {
+    const next = new Set(selected);
+    next.has(role) ? next.delete(role) : next.add(role);
+    onChange(Array.from(next));
+  };
+
+  const clearAll = () => onChange([]); // empty = Everyone
+
+  return (
+    <div className="rolepicker" ref={ref}>
+      <button
+        type="button"
+        className="rp-field"
+        onClick={() => setOpen((v) => !v)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+      >
+        <div className="rp-chips">
+          {value.length === 0 ? (
+            <span className="chip chip-all">All Employees</span>
+          ) : (
+            value.map((r) => (
+              <span key={r} className="chip">
+                {r}
+                <button
+                  type="button"
+                  className="chip-x"
+                  aria-label={`Remove ${r}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggle(r);
+                  }}
+                >
+                  ×
+                </button>
+              </span>
+            ))
+          )}
+        </div>
+        <span className="rp-caret" aria-hidden>
+          ▾
+        </span>
+      </button>
+
+      {open && (
+        <div className="rp-pop" role="listbox">
+          <div className="rp-search">
+            <input
+              className="input"
+              placeholder="Search roles…"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              autoFocus
+            />
+            <button className="btn-ghost rp-clear" onClick={clearAll} title="Everyone">
+              All
+            </button>
+          </div>
+
+          <div className="rp-list">
+            {filtered.length === 0 && <div className="rp-empty">No roles match.</div>}
+            {filtered.map((r) => {
+              const picked = selected.has(r);
+              return (
+                <button
+                  type="button"
+                  key={r}
+                  className={`rp-item ${picked ? "is-picked" : ""}`}
+                  onClick={() => toggle(r)}
+                >
+                  <span className={`rp-check ${picked ? "on" : ""}`} aria-hidden>
+                    {picked ? "✓" : ""}
+                  </span>
+                  <span className="rp-txt">{r}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="rp-help">
+            Empty = everyone. If you pick roles, the question is visible only to those roles.
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ===== Mock Question Bank API — swap later with GET /api/question-bank?q=... ===== */
+async function fetchQuestionBank(query = "") {
+  await new Promise((r) => setTimeout(r, 200));
+  const bank = [
+    {
+      id: "q1",
+      text: "What is your first action when detecting ransomware activity?",
+      tags: ["Security", "IR"],
+      options: [
+        { id: "a", text: "Disconnect affected servers from the network.", score: 10, kind: "correct" },
+        { id: "b", text: "Run antivirus across all systems immediately.", score: 2, kind: "incorrect" },
+      ],
+    },
+    {
+      id: "q2",
+      text: "When should management be informed?",
+      tags: ["Security", "IR"],
+      options: [
+        { id: "a", text: "Immediately after detection to escalate response.", score: 10, kind: "correct" },
+        { id: "b", text: "Only after resolution.", score: 2, kind: "incorrect" },
+      ],
+    },
+  ];
+  const q = query.trim().toLowerCase();
+  return q ? bank.filter((x) => x.text.toLowerCase().includes(q)) : bank;
+}
 
 const RISK = ["Beginner", "Intermediate", "Advanced"];
 
 export default function CreateScenario() {
   const navigate = useNavigate();
 
-  // —— Meta (no estimate, tags removed) ——
+  // —— Meta ——
   const [meta, setMeta] = useState({
     title: "",
     risk: "Intermediate",
     description: "",
   });
 
-  // —— Flat list of Questions (no sections) ——
+  // —— Questions (flat) ——
   const [questions, setQuestions] = useState([
     {
       id: nid(),
       text: "",
-      hint: "",
+      roles: [], // empty = All Employees (we render a chip for “All Employees”)
       options: [
         { id: nid(), text: "", score: 10, kind: "correct" },
-        { id: nid(), text: "", score: 2,  kind: "incorrect" },
+        { id: nid(), text: "", score: 2, kind: "incorrect" },
       ],
     },
   ]);
 
+  // —— Question Bank drawer ——
+  const [bankOpen, setBankOpen] = useState(false);
+  const [bankLoading, setBankLoading] = useState(false);
+  const [bankQuery, setBankQuery] = useState("");
+  const [bankItems, setBankItems] = useState([]);
+  const [bankSelected, setBankSelected] = useState(null);
+
+  const openBank = async () => {
+    setBankOpen(true);
+    setBankLoading(true);
+    const data = await fetchQuestionBank();
+    setBankItems(data);
+    setBankSelected(data[0] || null);
+    setBankLoading(false);
+  };
+
+  const searchBank = async (q) => {
+    setBankQuery(q);
+    setBankLoading(true);
+    const data = await fetchQuestionBank(q);
+    setBankItems(data);
+    setBankSelected((prev) => data.find((d) => d.id === prev?.id) || data[0] || null);
+    setBankLoading(false);
+  };
+
+  const addFromBankAsCopy = () => {
+    if (!bankSelected) return;
+    const copyOpt = (o) => ({ ...o, id: nid() });
+    const qCopy = {
+      id: nid(),
+      text: bankSelected.text,
+      roles: [], // default to Everyone on copy
+      options: (bankSelected.options || []).map(copyOpt),
+      source: { type: "bank", refId: bankSelected.id },
+    };
+    setQuestions((qs) => [...qs, qCopy]);
+    setBankOpen(false);
+    setBankSelected(null);
+    setBankQuery("");
+  };
+
   // —— Validation ——
   const issues = useMemo(() => validate(meta, questions), [meta, questions]);
 
-  // Questions CRUD
+  // —— Questions CRUD ——
   const addQuestion = () => {
-    setQuestions(q => [
+    setQuestions((q) => [
       ...q,
       {
         id: nid(),
         text: "",
-        hint: "",
+        roles: [], // Everyone by default
         options: [
           { id: nid(), text: "", score: 10, kind: "correct" },
-          { id: nid(), text: "", score: 2,  kind: "incorrect" },
+          { id: nid(), text: "", score: 2, kind: "incorrect" },
         ],
       },
     ]);
   };
 
   const removeQuestion = (qid) => {
-    setQuestions(q => q.filter(x => x.id !== qid));
+    setQuestions((q) => q.filter((x) => x.id !== qid));
   };
 
   const updateQuestion = (qid, patch) => {
-    setQuestions(q => q.map(x => (x.id === qid ? { ...x, ...patch } : x)));
+    setQuestions((q) => q.map((x) => (x.id === qid ? { ...x, ...patch } : x)));
   };
 
-  // Options CRUD
+  // —— Options CRUD ——
   const addOption = (qid) => {
-    setQuestions(q =>
-      q.map(x =>
+    setQuestions((q) =>
+      q.map((x) =>
         x.id === qid
           ? { ...x, options: [...x.options, { id: nid(), text: "", score: 0, kind: "incorrect" }] }
           : x
@@ -66,52 +254,45 @@ export default function CreateScenario() {
   };
 
   const removeOption = (qid, oid) => {
-    setQuestions(q =>
-      q.map(x =>
-        x.id === qid
-          ? { ...x, options: x.options.filter(o => o.id !== oid) }
-          : x
-      )
+    setQuestions((q) =>
+      q.map((x) => (x.id === qid ? { ...x, options: x.options.filter((o) => o.id !== oid) } : x))
     );
   };
 
-  // Make “correct” exclusive; other changes are normal patches
+  // Allow multiple correct answers (no exclusivity)
   const updateOption = (qid, oid, patch) => {
-    setQuestions(q =>
-      q.map(x => {
+    setQuestions((q) =>
+      q.map((x) => {
         if (x.id !== qid) return x;
-
-        if (patch.kind === "correct") {
-          return {
-            ...x,
-            options: x.options.map(o =>
-              o.id === oid
-                ? { ...o, ...patch, score: Math.max(10, Number(patch.score ?? o.score) || 10) }
-                : { ...o, kind: o.kind === "correct" ? "incorrect" : o.kind }
-            ),
-          };
-        }
-
         return {
           ...x,
-          options: x.options.map(o => (o.id === oid ? { ...o, ...patch } : o)),
+          options: x.options.map((o) => {
+            if (o.id !== oid) return o;
+            const bump =
+              patch.kind === "correct" && patch.score == null
+                ? { score: Math.max(10, Number(o.score) || 10) }
+                : {};
+            return { ...o, ...patch, ...bump };
+          }),
         };
       })
     );
   };
 
-  // Quick “mark correct” button
+  // Toggle this option’s correctness
   const markCorrect = (qid, oid) => {
-    setQuestions(q =>
-      q.map(x =>
+    setQuestions((q) =>
+      q.map((x) =>
         x.id !== qid
           ? x
           : {
               ...x,
-              options: x.options.map(o =>
-                o.id === oid
-                  ? { ...o, kind: "correct", score: Math.max(10, o.score) }
-                  : { ...o, kind: o.kind === "correct" ? "incorrect" : o.kind }
+              options: x.options.map((o) =>
+                o.id !== oid
+                  ? o
+                  : o.kind === "correct"
+                  ? { ...o, kind: "incorrect" } // turn off
+                  : { ...o, kind: "correct", score: Math.max(10, o.score || 10) } // turn on
               ),
             }
       )
@@ -121,10 +302,9 @@ export default function CreateScenario() {
   // —— Payload (preview + save) ——
   const payload = useMemo(() => {
     const maxScore = questions.reduce(
-      (sum, q) => sum + Math.max(0, ...q.options.map(o => Number(o.score) || 0)),
+      (sum, q) => sum + Math.max(0, ...q.options.map((o) => Number(o.score) || 0)),
       0
     );
-
     return {
       title: meta.title.trim(),
       risk: meta.risk,
@@ -138,7 +318,7 @@ export default function CreateScenario() {
 
   const save = async () => {
     if (issues.length) return;
-    // TODO: replace with POST /api/scenarios
+    // TODO: POST /api/scenarios
     console.log("CREATE_SCENARIO_PAYLOAD", payload);
     setFlash({ type: "ok", text: "Scenario saved!" });
     setTimeout(() => navigate("/admin"), 600);
@@ -178,7 +358,7 @@ export default function CreateScenario() {
       {/* — Content — */}
       <div className="container create-wrap">
         <h1 className="page-title">Create Scenario</h1>
-        <p className="page-subtitle">Define metadata, questions and scoring.</p>
+        <p className="page-subtitle">Define metadata, target audience, questions and scoring.</p>
 
         {flash && <div className={`flash ${flash.type}`}>{flash.text}</div>}
 
@@ -192,7 +372,7 @@ export default function CreateScenario() {
               <input
                 className="input"
                 value={meta.title}
-                onChange={e => setMeta(m => ({ ...m, title: e.target.value }))}
+                onChange={(e) => setMeta((m) => ({ ...m, title: e.target.value }))}
                 placeholder="e.g., Ransomware Detected"
               />
             </div>
@@ -202,9 +382,9 @@ export default function CreateScenario() {
               <select
                 className="input"
                 value={meta.risk}
-                onChange={e => setMeta(m => ({ ...m, risk: e.target.value }))}
+                onChange={(e) => setMeta((m) => ({ ...m, risk: e.target.value }))}
               >
-                {RISK.map(r => (
+                {RISK.map((r) => (
                   <option key={r}>{r}</option>
                 ))}
               </select>
@@ -216,7 +396,7 @@ export default function CreateScenario() {
                 className="input"
                 rows={3}
                 value={meta.description}
-                onChange={e => setMeta(m => ({ ...m, description: e.target.value }))}
+                onChange={(e) => setMeta((m) => ({ ...m, description: e.target.value }))}
                 placeholder="Write a short description of the scenario…"
               />
             </div>
@@ -224,11 +404,19 @@ export default function CreateScenario() {
             <div className="sep" />
 
             {/* Questions */}
-            <div className="questions-head">
+            <div
+              className="questions-head"
+              style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}
+            >
               <h3 className="panel-title">Questions</h3>
-              <button className="btn-ghost" onClick={addQuestion}>
-                + Add question
-              </button>
+              <div className="row gap">
+                <button className="btn-ghost" onClick={addQuestion}>
+                  + Add question
+                </button>
+                <button className="btn-ghost" onClick={openBank}>
+                  + Add from bank
+                </button>
+              </div>
             </div>
 
             {questions.map((q, qi) => (
@@ -246,20 +434,17 @@ export default function CreateScenario() {
                     className="input"
                     rows={2}
                     value={q.text}
-                    onChange={e => updateQuestion(q.id, { text: e.target.value })}
+                    onChange={(e) => updateQuestion(q.id, { text: e.target.value })}
                     placeholder="Write the question…"
                   />
                 </div>
 
+                {/* Audience (roles) */}
                 <div className="form-row">
-                  <label>
-                    Hint <span className="muted">(optional)</span>
-                  </label>
-                  <input
-                    className="input"
-                    value={q.hint || ""}
-                    onChange={e => updateQuestion(q.id, { hint: e.target.value })}
-                    placeholder="Helpful hint"
+                  <label>Audience (roles)</label>
+                  <RolePicker
+                    value={q.roles || []}
+                    onChange={(roles) => updateQuestion(q.id, { roles })}
                   />
                 </div>
 
@@ -278,7 +463,7 @@ export default function CreateScenario() {
                         type="button"
                         className={`opt-check ${o.kind}`}
                         onClick={() => markCorrect(q.id, o.id)}
-                        title={o.kind === "correct" ? "This is the correct answer" : "Mark as correct"}
+                        title={o.kind === "correct" ? "This is a correct answer (toggle)" : "Mark as correct"}
                         aria-label={o.kind === "correct" ? "Correct answer" : "Mark option as correct"}
                       >
                         {o.kind === "correct" ? "✓" : o.kind === "partial" ? "~" : "×"}
@@ -287,7 +472,7 @@ export default function CreateScenario() {
                       <input
                         className="input"
                         value={o.text}
-                        onChange={e => updateOption(q.id, o.id, { text: e.target.value })}
+                        onChange={(e) => updateOption(q.id, o.id, { text: e.target.value })}
                         placeholder={`Option ${oi + 1} text`}
                       />
 
@@ -297,14 +482,14 @@ export default function CreateScenario() {
                         min="0"
                         step="1"
                         value={o.score}
-                        onChange={e => updateOption(q.id, o.id, { score: Number(e.target.value) })}
+                        onChange={(e) => updateOption(q.id, o.id, { score: Number(e.target.value) })}
                         title="Score"
                       />
 
                       <select
                         className="input kind"
                         value={o.kind}
-                        onChange={e => updateOption(q.id, o.id, { kind: e.target.value })}
+                        onChange={(e) => updateOption(q.id, o.id, { kind: e.target.value })}
                         title="Kind"
                       >
                         <option value="correct">correct</option>
@@ -313,11 +498,7 @@ export default function CreateScenario() {
                         <option value="none">none</option>
                       </select>
 
-                      <button
-                        className="btn-ghost danger"
-                        onClick={() => removeOption(q.id, o.id)}
-                        type="button"
-                      >
+                      <button className="btn-ghost danger" onClick={() => removeOption(q.id, o.id)} type="button">
                         Remove
                       </button>
                     </div>
@@ -337,7 +518,6 @@ export default function CreateScenario() {
           {/* RIGHT: live preview */}
           <div className="panel preview">
             <h3 className="panel-title">Preview</h3>
-
             <div className="preview-card">
               <div className="p-top">
                 <span className="p-icon" aria-hidden>
@@ -370,6 +550,85 @@ export default function CreateScenario() {
           </div>
         </div>
       </div>
+
+      {/* ===== Question Bank Drawer ===== */}
+      {bankOpen && (
+        <div className="drawer" role="dialog" aria-modal="true">
+          <div className="drawer-backdrop" onClick={() => setBankOpen(false)} />
+          <div className="drawer-panel">
+            <div className="drawer-head">
+              <b>Select from question bank</b>
+              <button className="btn-ghost" onClick={() => setBankOpen(false)}>
+                Close
+              </button>
+            </div>
+
+            {/* Single-column bank body */}
+            <div className="panel bank-body">
+              {/* Search */}
+              <input
+                className="input"
+                placeholder="Search question text…"
+                value={bankQuery}
+                onChange={(e) => searchBank(e.target.value)}
+              />
+
+              {/* Dropdown */}
+              <div className="bank-controls">
+                <select
+                  className="input bank-select"
+                  value={bankSelected?.id || ""}
+                  onChange={(e) => {
+                    const picked = bankItems.find((x) => x.id === e.target.value);
+                    setBankSelected(picked || null);
+                  }}
+                >
+                  <option value="" disabled>
+                    {bankLoading ? "Loading…" : "Choose a question…"}
+                  </option>
+                  {bankItems.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.text}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Preview */}
+              <div className="preview-card is-wrapped" style={{ marginTop: 6 }}>
+                <h3 className="q-title">{bankSelected?.text || "Select a question above"}</h3>
+
+                {bankSelected && (
+                  <>
+                    <div className="opts-title">Options</div>
+
+                    {(bankSelected.options || []).map((o) => (
+                      <div key={o.id} className={`opt-row status-${o.kind}`}>
+                        <div className={`opt-check ${o.kind}`} aria-hidden>
+                          {o.kind === "correct" ? "✓" : o.kind === "partial" ? "~" : "×"}
+                        </div>
+
+                        <div className="opt-text">{o.text}</div>
+                        <div className="pill pill-score">{o.score}</div>
+                        <div className={`pill pill-verdict ${o.kind}`}>{o.kind}</div>
+                      </div>
+                    ))}
+
+                    <div className="drawer-actions" style={{ justifyContent: "flex-start", gap: 10 }}>
+                      <button className="btn-primary" onClick={addFromBankAsCopy}>
+                        Add as copy
+                      </button>
+                      <button className="btn-ghost" disabled title="Linking can be added later">
+                        Link (later)
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -383,13 +642,11 @@ function validate(meta, questions) {
   const out = [];
   if (!meta.title.trim()) out.push("Title is required.");
   if (!questions.length) out.push("Add at least one question.");
-
   questions.forEach((q, qi) => {
     if (!q.text.trim()) out.push(`Q${qi + 1}: question text is required.`);
     if (!q.options.length) out.push(`Q${qi + 1}: add at least one option.`);
-    const hasCorrect = q.options.some(o => o.kind === "correct");
+    const hasCorrect = q.options.some((o) => o.kind === "correct");
     if (!hasCorrect) out.push(`Q${qi + 1}: mark one option as correct.`);
   });
-
   return out;
 }
