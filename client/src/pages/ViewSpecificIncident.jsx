@@ -1,146 +1,237 @@
 // src/pages/ViewSpecificIncident.jsx
-import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
-// fjernet de her to fordi de skaber problemer
-// fjernet de her to fordi de skaber problemer import jsPDF from "jspdf";
-
-// fjernet de her to fordi de skaber problemer import autoTable from "jspdf-autotable";
+import { useNavigate, useParams } from "react-router-dom";
+import api from "../services/api";
 import "./ViewSpecificIncident.css";
+
+const STATUS_ENUM = {
+  0: "NotStarted",
+  1: "InProgress",
+  2: "Completed",
+};
+
+const STATUS_LABELS = {
+  NotStarted: "Not started",
+  InProgress: "In progress",
+  Completed: "Completed",
+};
+
+const STATUS_CLASSES = {
+  NotStarted: "amber",
+  InProgress: "blue",
+  Completed: "green",
+  Unknown: "muted",
+};
+
+const toSentenceCase = (value) =>
+  value
+    .replace(/([A-Z])/g, " $1")
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/^\w/, (c) => c.toUpperCase());
+
+const getStatusMeta = (rawStatus) => {
+  let key = null;
+  if (typeof rawStatus === "number") key = STATUS_ENUM[rawStatus] ?? null;
+  if (!key && typeof rawStatus === "string") key = rawStatus;
+  if (!key) key = "Unknown";
+  const compact = key.replace(/\s+/g, "");
+  const canonical = compact.charAt(0).toUpperCase() + compact.slice(1);
+  const label = STATUS_LABELS[canonical] ?? toSentenceCase(canonical);
+  const className = STATUS_CLASSES[canonical] ?? "muted";
+  return { key: canonical, label, className };
+};
+
+const normaliseIncident = (raw) => {
+  if (!raw) return null;
+
+  const scenario = raw.scenario ?? raw.Scenario ?? null;
+  const scenarioTitle = scenario?.title ?? scenario?.Title ?? "Unknown scenario";
+  const incidentId = raw.id ?? raw.Id ?? "";
+  const startedAt = raw.startedAt ?? raw.StartedAt ?? null;
+  const completedAt = raw.completedAt ?? raw.CompletedAt ?? null;
+  const statusMeta = getStatusMeta(raw.status ?? raw.Status);
+
+  const responses = Array.isArray(raw.responses ?? raw.Responses)
+    ? raw.responses ?? raw.Responses
+    : [];
+
+  const participantsMap = new Map();
+  const questionMaxLookup = new Map();
+  let fallbackCounter = 0;
+
+  responses.forEach((resp) => {
+    const question = resp.question ?? resp.Question ?? {};
+    const questionId = question.id ?? question.Id ?? `question-${fallbackCounter++}`;
+    if (!questionMaxLookup.has(questionId)) {
+      const answerOptions = Array.isArray(question.answerOptions ?? question.AnswerOptions)
+        ? question.answerOptions ?? question.AnswerOptions
+        : [];
+      const maxWeight = answerOptions.reduce(
+        (max, option) => Math.max(max, Number(option?.weight ?? option?.Weight ?? 0)),
+        0
+      );
+      questionMaxLookup.set(questionId, maxWeight);
+    }
+
+    const answerOption = resp.answerOption ?? resp.AnswerOption ?? null;
+    const questionText = question.text ?? question.Text ?? "Question";
+    const points = Number(answerOption?.weight ?? answerOption?.Weight ?? 0);
+    const isCorrect = Boolean(answerOption?.isCorrect ?? answerOption?.IsCorrect ?? false);
+    const answerText =
+      answerOption?.text ??
+      answerOption?.Text ??
+      resp.answer ??
+      resp.Answer ??
+      (isCorrect ? "Correct" : "Incorrect");
+
+    const user = resp.user ?? resp.User ?? null;
+    const role = resp.role ?? resp.Role ?? null;
+
+    const userId = user?.id ?? user?.Id ?? null;
+    const roleId = role?.id ?? role?.Id ?? null;
+
+    const participantKey = userId
+      ? `user:${userId}`
+      : roleId
+      ? `role:${roleId}`
+      : `anon:${fallbackCounter++}`;
+
+    if (!participantsMap.has(participantKey)) {
+      participantsMap.set(participantKey, {
+        id: participantKey,
+        name:
+          user?.username ??
+          user?.Username ??
+          user?.email ??
+          user?.Email ??
+          role?.name ??
+          role?.Name ??
+          "Participant",
+        role: role?.name ?? role?.Name ?? null,
+        answers: [],
+        totalScore: 0,
+        maxScore: 0,
+        _questionIds: new Set(),
+      });
+    }
+
+    const participant = participantsMap.get(participantKey);
+    participant.answers.push({
+      question: questionText,
+      selected: answerText,
+      correct: isCorrect,
+      points,
+      answeredAt: resp.answeredAt ?? resp.AnsweredAt ?? null,
+    });
+    participant.totalScore += points;
+
+    if (!participant._questionIds.has(questionId)) {
+      participant.maxScore += questionMaxLookup.get(questionId) ?? points;
+      participant._questionIds.add(questionId);
+    }
+  });
+
+  const participants = Array.from(participantsMap.values()).map((participant) => ({
+    ...participant,
+    maxScore: participant.maxScore || participant.totalScore,
+    answers: participant.answers,
+  }));
+
+  participants.forEach((participant) => delete participant._questionIds);
+  participants.sort((a, b) => a.name.localeCompare(b.name));
+
+  const displayTitle = scenarioTitle
+    ? `${scenarioTitle}${startedAt ? ` — ${new Date(startedAt).toLocaleDateString("en-GB")}` : ""}`
+    : incidentId
+    ? `Incident ${incidentId}`
+    : "Incident";
+
+  return {
+    id: incidentId,
+    displayTitle,
+    scenarioTitle,
+    startedAt,
+    completedAt,
+    statusKey: statusMeta.key,
+    statusLabel: statusMeta.label,
+    statusClass: statusMeta.className,
+    participants,
+    participantCount: participants.length,
+    questionCount: questionMaxLookup.size || participants.reduce((set, participant) => {
+      participant.answers.forEach((answer) => set.add(answer.question));
+      return set;
+    }, new Set()).size,
+  };
+};
+
+const formatDateTime = (value) => (value ? new Date(value).toLocaleString("en-GB") : "—");
 
 export default function ViewSpecificIncident() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [incident, setIncident] = useState(null);
-
-  // --- MOCK DATA ---
-  const mockIncidents = {
-    "inc-001": {
-      id: "inc-001",
-      title: "Ransomware Detected — October 2025",
-      scenario: "Ransomware Detected",
-      status: "Completed",
-      startedAt: "2025-10-19T10:30:00Z",
-      completedAt: "2025-10-21T15:45:00Z",
-      participants: [
-        {
-          name: "Alice Jensen",
-          totalScore: 42,
-          maxScore: 50,
-          answers: [
-            {
-              question: "What is your first action when detecting ransomware activity?",
-              selected: "Disconnect affected servers from the network.",
-              correct: true,
-              points: 10,
-            },
-            {
-              question: "When should management be informed?",
-              selected: "Immediately after detection to escalate response.",
-              correct: true,
-              points: 10,
-            },
-          ],
-        },
-        {
-          name: "Mark Hansen",
-          totalScore: 35,
-          maxScore: 50,
-          answers: [
-            {
-              question: "What is your first action when detecting ransomware activity?",
-              selected: "Run antivirus across all systems.",
-              correct: false,
-              points: 2,
-            },
-            {
-              question: "When should management be informed?",
-              selected: "Only after resolution.",
-              correct: false,
-              points: 2,
-            },
-          ],
-        },
-      ],
-    },
-  };
-  // -----------------
+  const [error, setError] = useState(null);
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
+    if (!id) return;
+    let active = true;
     setLoading(true);
-    setTimeout(() => {
-      setIncident(mockIncidents[id]);
-      setLoading(false);
-    }, 400);
-  }, [id]);
+    setError(null);
 
-  // ✅ Generate PDF for this incident only
-  const generateIncidentPDF = () => {
-    if (!incident) return;
-
-    const doc = new jsPDF();
-    let y = 20;
-
-    // Header
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(18);
-    doc.text(`Incident Report — ${incident.title}`, 14, y);
-    y += 10;
-
-    // Basic Info
-    doc.setFontSize(12);
-    doc.setFont("helvetica", "normal");
-    doc.text(`Scenario: ${incident.scenario}`, 14, y);
-    y += 6;
-    doc.text(`Status: ${incident.status}`, 14, y);
-    y += 6;
-    doc.text(`Started: ${new Date(incident.startedAt).toLocaleString()}`, 14, y);
-    y += 6;
-    doc.text(`Completed: ${new Date(incident.completedAt).toLocaleString()}`, 14, y);
-    y += 6;
-    doc.text(`Participants: ${incident.participants.length}`, 14, y);
-    y += 10;
-
-    // Participants
-    incident.participants.forEach((p, idx) => {
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(13);
-      doc.text(`${idx + 1}. ${p.name} — ${p.totalScore}/${p.maxScore} pts`, 14, y);
-      y += 6;
-
-      const rows = p.answers.map((a, i) => [
-        i + 1,
-        a.question,
-        a.selected,
-        a.correct ? "✓ Correct" : "✗ Incorrect",
-        `${a.points} pts`,
-      ]);
-
-      autoTable(doc, {
-        startY: y,
-        head: [["#", "Question", "Answer", "Verdict", "Points"]],
-        body: rows,
-        theme: "grid",
-        styles: { fontSize: 9, cellPadding: 2 },
-        headStyles: { fillColor: [107, 97, 255] },
+    api
+      .get(`/api/incident/${id}`)
+      .then(({ data }) => {
+        if (!active) return;
+        const mapped = normaliseIncident(data);
+        if (!mapped) {
+          setError("Incident data not available.");
+          setIncident(null);
+        } else {
+          setIncident(mapped);
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to load incident", err);
+        if (active) {
+          setError("Could not load incident details. Please try again.");
+          setIncident(null);
+        }
+      })
+      .finally(() => {
+        if (active) setLoading(false);
       });
 
-      y = doc.lastAutoTable.finalY + 10;
-    });
+    return () => {
+      active = false;
+    };
+  }, [id]);
 
-    // Footer
-    const dateStr = new Date().toLocaleString();
-    doc.setFontSize(10);
-    doc.text(`Generated on ${dateStr}`, 14, 285);
-
-    doc.save(`${incident.title.replace(/\s+/g, "_")}.pdf`);
-  };
 
   if (loading) {
     return (
       <div className="admin-root">
         <div className="container">
           <div className="skeleton-panel" />
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="admin-root">
+        <div className="container">
+          <div className="panel">
+            <h3 className="panel-title">Incident details</h3>
+            <p>{error}</p>
+            <button className="btn-outlined" onClick={() => navigate(-1)}>
+              ← Back
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -161,7 +252,6 @@ export default function ViewSpecificIncident() {
 
   return (
     <div className="admin-root">
-      {/* Topbar */}
       <div className="admin-topbar">
         <div className="admin-topbar-inner">
           <div className="brand">
@@ -175,8 +265,8 @@ export default function ViewSpecificIncident() {
           </div>
 
           <div className="right-buttons">
-            <button className="btn-secondary" onClick={generateIncidentPDF}>
-              ⬇ Generate Report (PDF)
+            <button className="btn-secondary" onClick={generateIncidentPDF} disabled={exporting}>
+              {exporting ? "Generating…" : "⬇ Generate Report (PDF)"}
             </button>
             <button className="btn-outlined" onClick={() => navigate(-1)}>
               ← Back
@@ -186,62 +276,66 @@ export default function ViewSpecificIncident() {
       </div>
 
       <div className="container results-wrap">
-        <h1 className="page-title">{incident.title}</h1>
-        <p className="page-subtitle">
-          Overview of incident details, participants, and their responses.
-        </p>
+        <h1 className="page-title">{incident.displayTitle}</h1>
+        <p className="page-subtitle">Overview of incident details, participants, and their responses.</p>
 
-        {/* Incident Info */}
         <div className="panel">
           <h3 className="panel-title">Incident Info</h3>
           <div className="summary-stats">
-            <div><b>Scenario:</b> {incident.scenario}</div>
+            <div>
+              <b>Scenario:</b> {incident.scenarioTitle}
+            </div>
             <div>
               <b>Status:</b>{" "}
-              <span className={`pill ${
-                incident.status === "Completed"
-                  ? "green"
-                  : incident.status === "Active"
-                  ? "amber"
-                  : "red"
-              }`}>
-                {incident.status}
-              </span>
+              <span className={`pill ${incident.statusClass}`}>{incident.statusLabel}</span>
             </div>
-            <div><b>Started:</b> {new Date(incident.startedAt).toLocaleDateString("en-GB")}</div>
-            <div><b>Completed:</b> {new Date(incident.completedAt).toLocaleDateString("en-GB")}</div>
-            <div><b>Participants:</b> {incident.participants.length}</div>
+            <div>
+              <b>Started:</b> {formatDateTime(incident.startedAt)}
+            </div>
+            <div>
+              <b>Completed:</b> {formatDateTime(incident.completedAt)}
+            </div>
+            <div>
+              <b>Participants:</b> {incident.participantCount}
+            </div>
+            <div>
+              <b>Questions:</b> {incident.questionCount}
+            </div>
           </div>
         </div>
 
-        {/* Participants */}
         <div className="panel">
           <h3 className="panel-title">Responses</h3>
-          {incident.participants.map((p) => (
-            <div key={p.name} className="participant-card">
-              <div className="participant-head">
-                <h4>{p.name}</h4>
-                <span className="pill">{p.totalScore} / {p.maxScore} pts</span>
-              </div>
+          {incident.participants.length === 0 ? (
+            <div className="muted tiny">No responses recorded for this incident yet.</div>
+          ) : (
+            incident.participants.map((participant) => (
+              <div key={participant.id} className="participant-card">
+                <div className="participant-head">
+                  <div>
+                    <h4>{participant.name}</h4>
+                    {participant.role && <div className="muted tiny">{participant.role}</div>}
+                  </div>
+                  <span className="pill">{participant.totalScore} / {participant.maxScore} pts</span>
+                </div>
 
-              <div className="answers-list">
-                {p.answers.map((a, i) => (
-                  <details key={i} className={`answer-row ${a.correct ? "correct" : "incorrect"}`}>
-                    <summary className="q-summary">
-                      Q{i + 1}: {a.question}
-                    </summary>
-                    <div className="q-body">
-                      <div><b>Answer:</b> {a.selected}</div>
-                      <div><b>Points:</b> {a.points}</div>
-                      <div className={`verdict ${a.correct ? "ok" : "bad"}`}>
-                        {a.correct ? "✓ Correct" : "✗ Incorrect"}
+                <div className="answers-list">
+                  {participant.answers.map((answer, index) => (
+                    <details key={index} className={`answer-row ${answer.correct ? "correct" : "incorrect"}`}>
+                      <summary className="q-summary">Q{index + 1}: {answer.question}</summary>
+                      <div className="q-body">
+                        <div><b>Answer:</b> {answer.selected}</div>
+                        <div><b>Points:</b> {answer.points}</div>
+                        <div className={`verdict ${answer.correct ? "ok" : "bad"}`}>
+                          {answer.correct ? "✓ Correct" : "✗ Incorrect"}
+                        </div>
                       </div>
-                    </div>
-                  </details>
-                ))}
+                    </details>
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       </div>
     </div>

@@ -1,6 +1,6 @@
 using System;
-using System.Net.Cache;
 using Domain.Entities;
+using Domain.Enum;
 using MediatR;
 using Persistence;
 
@@ -15,6 +15,7 @@ public class EditScenario
         public string Title { get; set; } = null!;
         public string Description { get; set; } = null!;
         public DateTime CreatedAt { get; set; }
+        public Risk Risk { get; set; }
     }
 
     public class Handler(AppDbContext context) : IRequestHandler<Command>
@@ -27,6 +28,7 @@ public class EditScenario
             scenario.CreatedAt = request.CreatedAt;
             scenario.Description = request.Description;
             scenario.Title = request.Title;
+            scenario.Risk = request.Risk;
 
             await context.SaveChangesAsync(cancellationToken);
         }

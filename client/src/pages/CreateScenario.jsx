@@ -1,70 +1,91 @@
 // src/pages/CreateScenario.jsx
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import api from "../services/api";
 import "./CreateScenario.css";
 
-/* ===== Role catalog (can come from API later) ===== */
-const ROLE_CATALOG = [
-  "Developer",
-  "Security",
-  "IT Ops",
-  "Support",
-  "Sales",
-  "Finance",
-  "HR",
-];
-
 /* ===== Chip-style searchable multi-select for roles ===== */
-function RolePicker({ value = [], onChange }) {
+function RolePicker({ options = [], value = [], onChange, disabled = false }) {
   const [open, setOpen] = useState(false);
-  const [q, setQ] = useState("");
+  const [query, setQuery] = useState("");
   const ref = useRef(null);
 
-  // close on outside click
   useEffect(() => {
-    const onDoc = (e) => {
-      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    const handler = (event) => {
+      if (ref.current && !ref.current.contains(event.target)) {
+        setOpen(false);
+      }
     };
-    document.addEventListener("pointerdown", onDoc);
-    return () => document.removeEventListener("pointerdown", onDoc);
+    document.addEventListener("pointerdown", handler);
+    return () => document.removeEventListener("pointerdown", handler);
   }, []);
 
-  const selected = new Set(value);
-  const filtered = ROLE_CATALOG.filter((r) =>
-    r.toLowerCase().includes(q.trim().toLowerCase())
+  const items = useMemo(
+    () =>
+      options
+        .map((role) => ({
+          id: String(role?.id ?? role?.Id ?? ""),
+          name: role?.name ?? role?.Name ?? "",
+        }))
+        .filter((role) => role.id && role.name),
+    [options]
   );
 
-  const toggle = (role) => {
+  const selected = useMemo(() => new Set((value ?? []).map(String)), [value]);
+
+  const chips = useMemo(() => {
+    const map = new Map(items.map((item) => [item.id, item.name]));
+    return Array.from(selected)
+      .map((id) => {
+        const name = map.get(id);
+        return name ? { id, name } : null;
+      })
+      .filter(Boolean);
+  }, [items, selected]);
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return items;
+    return items.filter((role) => role.name.toLowerCase().includes(q));
+  }, [items, query]);
+
+  const toggle = (roleId) => {
     const next = new Set(selected);
-    next.has(role) ? next.delete(role) : next.add(role);
+    if (next.has(roleId)) {
+      next.delete(roleId);
+    } else {
+      next.add(roleId);
+    }
     onChange(Array.from(next));
   };
 
-  const clearAll = () => onChange([]); // empty = Everyone
+  const clearAll = () => onChange([]);
 
   return (
-    <div className="rolepicker" ref={ref}>
+    <div className={`rolepicker${disabled ? " is-disabled" : ""}`} ref={ref}>
       <button
         type="button"
         className="rp-field"
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => !disabled && setOpen((open) => !open)}
         aria-haspopup="listbox"
         aria-expanded={open}
+        disabled={disabled}
       >
         <div className="rp-chips">
-          {value.length === 0 ? (
-            <span className="chip chip-all">All Employees</span>
+          {chips.length === 0 ? (
+            <span className="chip chip-all">All roles</span>
           ) : (
-            value.map((r) => (
-              <span key={r} className="chip">
-                {r}
+            chips.map((chip) => (
+              <span key={chip.id} className="chip">
+                {chip.name}
                 <button
                   type="button"
                   className="chip-x"
-                  aria-label={`Remove ${r}`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    toggle(r);
+                  aria-label={`Remove ${chip.name}`}
+                  disabled={disabled}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    toggle(chip.id);
                   }}
                 >
                   ×
@@ -84,8 +105,8 @@ function RolePicker({ value = [], onChange }) {
             <input
               className="input"
               placeholder="Search roles…"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
               autoFocus
             />
             <button className="btn-ghost rp-clear" onClick={clearAll} title="Everyone">
@@ -95,19 +116,19 @@ function RolePicker({ value = [], onChange }) {
 
           <div className="rp-list">
             {filtered.length === 0 && <div className="rp-empty">No roles match.</div>}
-            {filtered.map((r) => {
-              const picked = selected.has(r);
+            {filtered.map((role) => {
+              const picked = selected.has(role.id);
               return (
                 <button
                   type="button"
-                  key={r}
+                  key={role.id}
                   className={`rp-item ${picked ? "is-picked" : ""}`}
-                  onClick={() => toggle(r)}
+                  onClick={() => toggle(role.id)}
                 >
                   <span className={`rp-check ${picked ? "on" : ""}`} aria-hidden>
                     {picked ? "✓" : ""}
                   </span>
-                  <span className="rp-txt">{r}</span>
+                  <span className="rp-txt">{role.name}</span>
                 </button>
               );
             })}
@@ -122,34 +143,32 @@ function RolePicker({ value = [], onChange }) {
   );
 }
 
-/* ===== Mock Question Bank API — swap later with GET /api/question-bank?q=... ===== */
-async function fetchQuestionBank(query = "") {
-  await new Promise((r) => setTimeout(r, 200));
-  const bank = [
-    {
-      id: "q1",
-      text: "What is your first action when detecting ransomware activity?",
-      tags: ["Security", "IR"],
-      options: [
-        { id: "a", text: "Disconnect affected servers from the network.", score: 10, kind: "correct" },
-        { id: "b", text: "Run antivirus across all systems immediately.", score: 2, kind: "incorrect" },
-      ],
-    },
-    {
-      id: "q2",
-      text: "When should management be informed?",
-      tags: ["Security", "IR"],
-      options: [
-        { id: "a", text: "Immediately after detection to escalate response.", score: 10, kind: "correct" },
-        { id: "b", text: "Only after resolution.", score: 2, kind: "incorrect" },
-      ],
-    },
-  ];
-  const q = query.trim().toLowerCase();
-  return q ? bank.filter((x) => x.text.toLowerCase().includes(q)) : bank;
-}
-
 const RISK = ["Beginner", "Intermediate", "Advanced"];
+const PRIORITY_OPTIONS = ["Low", "Medium", "High", "Urgent"];
+
+const mapRiskValue = (value) => {
+  const lookup = {
+    Beginner: "Low",
+    Intermediate: "Medium",
+    Advanced: "High",
+    Low: "Low",
+    Medium: "Medium",
+    High: "High",
+    Extreme: "Extreme",
+  };
+  const normalized = typeof value === "string" && value.length
+    ? value.charAt(0).toUpperCase() + value.slice(1).toLowerCase()
+    : "";
+  return lookup[normalized] ?? lookup[value] ?? "Medium";
+};
+
+const normalisePriority = (value) => {
+  if (typeof value === "string" && value.length) {
+    const normalized = value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
+    if (PRIORITY_OPTIONS.includes(normalized)) return normalized;
+  }
+  return "Medium";
+};
 
 export default function CreateScenario() {
   const navigate = useNavigate();
@@ -166,7 +185,8 @@ export default function CreateScenario() {
     {
       id: nid(),
       text: "",
-      roles: [], // empty = All Employees (we render a chip for “All Employees”)
+      priority: "Medium",
+      roleIds: [],
       options: [
         { id: nid(), text: "", score: 10, kind: "correct" },
         { id: nid(), text: "", score: 2, kind: "incorrect" },
@@ -180,32 +200,145 @@ export default function CreateScenario() {
   const [bankQuery, setBankQuery] = useState("");
   const [bankItems, setBankItems] = useState([]);
   const [bankSelected, setBankSelected] = useState(null);
+  const [roles, setRoles] = useState([]);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadRoles() {
+      try {
+        const { data } = await api.get("/api/roles");
+        if (!active) return;
+        const items = Array.isArray(data)
+          ? data
+              .map((role) => ({
+                id: role.id ?? role.Id ?? role.name ?? role.Name ?? nid(),
+                name: role.name ?? role.Name ?? "Unnamed role",
+              }))
+              .filter((role) => role.name)
+          : [];
+        setRoles(items);
+      } catch (err) {
+        console.error("Failed to load roles", err);
+        setRoles([]);
+      }
+    }
+
+    loadRoles();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const roleNameById = useMemo(() => {
+    const map = new Map();
+    roles.forEach((role) => {
+      map.set(String(role.id), role.name);
+    });
+    return map;
+  }, [roles]);
+
+  const loadQuestionBank = async (query = "") => {
+    setBankLoading(true);
+    try {
+      const response = await api.get("/api/question", {
+        params: query ? { search: query } : undefined,
+      });
+
+      const items = Array.isArray(response.data)
+        ? response.data
+            .map((raw) => {
+              const text = raw?.text ?? raw?.Text ?? "Untitled question";
+              if (!text.trim()) return null;
+
+              const rawRoles = Array.isArray(raw?.questionRoles ?? raw?.QuestionRoles)
+                ? raw.questionRoles ?? raw.QuestionRoles
+                : [];
+
+              const roleIds = rawRoles
+                .map((qr) =>
+                  qr?.roleId ??
+                  qr?.RoleId ??
+                  qr?.role?.id ??
+                  qr?.role?.Id ??
+                  qr?.Role?.id ??
+                  qr?.Role?.Id ??
+                  null
+                )
+                .filter(Boolean)
+                .map((id) => String(id));
+
+              const roleNames = roleIds
+                .map((id) => roleNameById.get(id))
+                .filter(Boolean);
+
+              const options = Array.isArray(raw?.answerOptions ?? raw?.AnswerOptions)
+                ? (raw.answerOptions ?? raw.AnswerOptions).map((option) => {
+                    const isCorrect = Boolean(
+                      option?.isCorrect ?? option?.IsCorrect ?? option?.kind === "correct"
+                    );
+                    const weight = Number(
+                      option?.weight ?? option?.Weight ?? option?.score ?? option?.Score ?? 0
+                    );
+                    return {
+                      id: option?.id ?? option?.Id ?? nid(),
+                      text: option?.text ?? option?.Text ?? "",
+                      score: Number.isFinite(weight) ? weight : 0,
+                      kind: isCorrect ? "correct" : "incorrect",
+                    };
+                  })
+                : [];
+
+              return {
+                id: String(raw?.id ?? raw?.Id ?? nid()),
+                text,
+                priority: normalisePriority(raw?.priority ?? raw?.Priority),
+                roleIds,
+                roleNames,
+                options,
+              };
+            })
+            .filter(Boolean)
+        : [];
+
+      setBankItems(items);
+      setBankSelected((prev) => {
+        if (!prev) return items[0] || null;
+        return items.find((item) => item.id === prev.id) || items[0] || null;
+      });
+    } catch (err) {
+      console.error("Failed to load question bank", err);
+      setBankItems([]);
+      setBankSelected(null);
+    } finally {
+      setBankLoading(false);
+    }
+  };
 
   const openBank = async () => {
     setBankOpen(true);
-    setBankLoading(true);
-    const data = await fetchQuestionBank();
-    setBankItems(data);
-    setBankSelected(data[0] || null);
-    setBankLoading(false);
+    setBankQuery("");
+    await loadQuestionBank();
   };
 
-  const searchBank = async (q) => {
-    setBankQuery(q);
-    setBankLoading(true);
-    const data = await fetchQuestionBank(q);
-    setBankItems(data);
-    setBankSelected((prev) => data.find((d) => d.id === prev?.id) || data[0] || null);
-    setBankLoading(false);
+  const searchBank = async (query) => {
+    setBankQuery(query);
+    await loadQuestionBank(query);
   };
 
   const addFromBankAsCopy = () => {
     if (!bankSelected) return;
-    const copyOpt = (o) => ({ ...o, id: nid() });
+    const copyOpt = (o) => ({
+      id: nid(),
+      text: o.text ?? "",
+      score: Number.isFinite(o.score) ? o.score : o.kind === "correct" ? 10 : 0,
+      kind: o.kind ?? (o.score > 0 ? "correct" : "incorrect"),
+    });
     const qCopy = {
       id: nid(),
       text: bankSelected.text,
-      roles: [], // default to Everyone on copy
+      priority: bankSelected.priority ?? "Medium",
+      roleIds: Array.isArray(bankSelected.roleIds) ? [...bankSelected.roleIds] : [],
       options: (bankSelected.options || []).map(copyOpt),
       source: { type: "bank", refId: bankSelected.id },
     };
@@ -225,7 +358,8 @@ export default function CreateScenario() {
       {
         id: nid(),
         text: "",
-        roles: [], // Everyone by default
+        priority: "Medium",
+        roleIds: [],
         options: [
           { id: nid(), text: "", score: 10, kind: "correct" },
           { id: nid(), text: "", score: 2, kind: "incorrect" },
@@ -315,13 +449,53 @@ export default function CreateScenario() {
   }, [meta, questions]);
 
   const [flash, setFlash] = useState(null);
+  const [savingScenario, setSavingScenario] = useState(false);
 
   const save = async () => {
     if (issues.length) return;
-    // TODO: POST /api/scenarios
-    console.log("CREATE_SCENARIO_PAYLOAD", payload);
-    setFlash({ type: "ok", text: "Scenario saved!" });
-    setTimeout(() => navigate("/admin"), 600);
+    const scenarioDto = {
+      title: payload.title,
+      description: payload.description,
+      createdAt: new Date().toISOString(),
+      risk: mapRiskValue(meta.risk),
+      questions: payload.questions.map((q) => {
+        const answerOptions = (q.options ?? [])
+          .map((option) => ({
+            text: option.text?.trim() ?? "",
+            weight: Number.isFinite(Number(option.score)) ? Number(option.score) : 0,
+            isCorrect: option.kind === "correct",
+          }))
+          .filter((option) => option.text.length > 0);
+
+        return {
+          text: q.text.trim(),
+          priority: normalisePriority(q.priority),
+          answerOptions,
+          questionRoles: (q.roleIds ?? [])
+            .filter(Boolean)
+            .map((roleId) => ({ roleId })),
+        };
+      }),
+    };
+
+    setSavingScenario(true);
+    try {
+      const response = await api.post("/api/scenarios", scenarioDto);
+      const scenarioId = response?.data;
+      setFlash({ type: "ok", text: "Scenario created!" });
+      setTimeout(() => {
+        if (scenarioId) {
+          navigate(`/admin/scenario/${scenarioId}`);
+        } else {
+          navigate("/admin/scenarios");
+        }
+      }, 600);
+    } catch (err) {
+      console.error("Failed to create scenario", err);
+      setFlash({ type: "err", text: "Failed to create scenario. Please try again." });
+    } finally {
+      setSavingScenario(false);
+    }
   };
 
   return (
@@ -346,10 +520,10 @@ export default function CreateScenario() {
             <button
               className="btn-primary"
               onClick={save}
-              disabled={issues.length > 0}
+              disabled={issues.length > 0 || savingScenario}
               title={issues.join("\n")}
             >
-              Save scenario
+              {savingScenario ? "Saving…" : "Save scenario"}
             </button>
           </div>
         </div>
@@ -439,13 +613,33 @@ export default function CreateScenario() {
                   />
                 </div>
 
+                <div className="form-row">
+                  <label>Priority</label>
+                  <select
+                    className="input"
+                    value={q.priority ?? "Medium"}
+                    onChange={(e) => updateQuestion(q.id, { priority: e.target.value })}
+                  >
+                    {PRIORITY_OPTIONS.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
                 {/* Audience (roles) */}
                 <div className="form-row">
                   <label>Audience (roles)</label>
                   <RolePicker
-                    value={q.roles || []}
-                    onChange={(roles) => updateQuestion(q.id, { roles })}
+                    options={roles}
+                    value={q.roleIds || []}
+                    onChange={(roleIds) => updateQuestion(q.id, { roleIds })}
+                    disabled={roles.length === 0}
                   />
+                  {roles.length === 0 && (
+                    <div className="muted tiny">Roles not loaded yet – defaulting to everyone.</div>
+                  )}
                 </div>
 
                 {/* Options */}
@@ -600,6 +794,9 @@ export default function CreateScenario() {
 
                 {bankSelected && (
                   <>
+                    <div className="muted tiny" style={{ marginBottom: 6 }}>
+                      Roles: {bankSelected.roleNames?.length ? bankSelected.roleNames.join(", ") : "All"}
+                    </div>
                     <div className="opts-title">Options</div>
 
                     {(bankSelected.options || []).map((o) => (

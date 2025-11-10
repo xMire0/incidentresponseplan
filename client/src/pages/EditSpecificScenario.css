@@ -14,3 +14,24 @@
   background: rgba(22, 199, 132, 0.12);
   border: 1px solid rgba(22, 199, 132, 0.45);
 }
+
+.panel-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.question-options ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.question-options li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+}

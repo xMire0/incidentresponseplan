@@ -25,10 +25,15 @@ public class GetIncidentDetails
             // Query Incident + Scenario + Responses (with their Question & Role)
             return await context.Incidents
                 .Include(i => i.Scenario)                    // load Scenario
-                .Include(i => i.Responses)                   // load Responses
-                    .ThenInclude(r => r.Question)            // include Question inside Response
                 .Include(i => i.Responses)
-                    .ThenInclude(r => r.Role)                // include Role inside Response
+                    .ThenInclude(r => r.Question)
+                        .ThenInclude(q => q.AnswerOptions)
+                .Include(i => i.Responses)
+                    .ThenInclude(r => r.AnswerOption)
+                .Include(i => i.Responses)
+                    .ThenInclude(r => r.User)
+                .Include(i => i.Responses)
+                    .ThenInclude(r => r.Role)
                 .FirstOrDefaultAsync(i => i.Id == guid, cancellationToken);
         }
     }
