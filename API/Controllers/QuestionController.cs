@@ -13,9 +13,9 @@ public class QuestionController : BaseApiController
     //List of questions
 
     [HttpGet]
-    public async Task<ActionResult<List<Question>>> GetQuestions()
+    public async Task<ActionResult<List<Question>>> GetQuestions([FromQuery] string? search)
     {
-        return await Mediator.Send(new GetQuestionList.Query());
+        return await Mediator.Send(new GetQuestionList.Query { Search = search });
     }
 
     //Specific question
