@@ -159,10 +159,12 @@ const normaliseIncident = (raw) => {
     statusClass: statusMeta.className,
     participants,
     participantCount: participants.length,
-    questionCount: questionMaxLookup.size || participants.reduce((set, participant) => {
-      participant.answers.forEach((answer) => set.add(answer.question));
-      return set;
-    }, new Set()).size,
+    questionCount:
+      questionMaxLookup.size ||
+      participants.reduce((set, participant) => {
+        participant.answers.forEach((answer) => set.add(answer.question));
+        return set;
+      }, new Set()).size,
   };
 };
 
@@ -174,7 +176,7 @@ export default function ViewSpecificIncident() {
   const [loading, setLoading] = useState(true);
   const [incident, setIncident] = useState(null);
   const [error, setError] = useState(null);
-  
+
   useEffect(() => {
     if (!id) return;
     let active = true;
@@ -208,7 +210,6 @@ export default function ViewSpecificIncident() {
       active = false;
     };
   }, [id]);
-
 
   if (loading) {
     return (
@@ -264,14 +265,18 @@ export default function ViewSpecificIncident() {
           </div>
 
           <div className="right-buttons">
-           
+            <button className="btn-outlined" onClick={() => navigate(-1)}>
+              ← Back
+            </button>
           </div>
         </div>
       </div>
 
       <div className="container results-wrap">
         <h1 className="page-title">{incident.displayTitle}</h1>
-        <p className="page-subtitle">Overview of incident details, participants, and their responses.</p>
+        <p className="page-subtitle">
+          Overview of incident details, participants, and their responses.
+        </p>
 
         <div className="panel">
           <h3 className="panel-title">Incident Info</h3>
@@ -310,16 +315,27 @@ export default function ViewSpecificIncident() {
                     <h4>{participant.name}</h4>
                     {participant.role && <div className="muted tiny">{participant.role}</div>}
                   </div>
-                  <span className="pill">{participant.totalScore} / {participant.maxScore} pts</span>
+                  <span className="pill">
+                    {participant.totalScore} / {participant.maxScore} pts
+                  </span>
                 </div>
 
                 <div className="answers-list">
                   {participant.answers.map((answer, index) => (
-                    <details key={index} className={`answer-row ${answer.correct ? "correct" : "incorrect"}`}>
-                      <summary className="q-summary">Q{index + 1}: {answer.question}</summary>
+                    <details
+                      key={index}
+                      className={`answer-row ${answer.correct ? "correct" : "incorrect"}`}
+                    >
+                      <summary className="q-summary">
+                        Q{index + 1}: {answer.question}
+                      </summary>
                       <div className="q-body">
-                        <div><b>Answer:</b> {answer.selected}</div>
-                        <div><b>Points:</b> {answer.points}</div>
+                        <div>
+                          <b>Answer:</b> {answer.selected}
+                        </div>
+                        <div>
+                          <b>Points:</b> {answer.points}
+                        </div>
                         <div className={`verdict ${answer.correct ? "ok" : "bad"}`}>
                           {answer.correct ? "✓ Correct" : "✗ Incorrect"}
                         </div>
