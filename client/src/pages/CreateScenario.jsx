@@ -143,23 +143,14 @@ function RolePicker({ options = [], value = [], onChange, disabled = false }) {
   );
 }
 
-const RISK = ["Beginner", "Intermediate", "Advanced"];
+const RISK = ["Low", "Medium", "High", "Extreme"];
 const PRIORITY_OPTIONS = ["Low", "Medium", "High", "Urgent"];
 
 const mapRiskValue = (value) => {
-  const lookup = {
-    Beginner: "Low",
-    Intermediate: "Medium",
-    Advanced: "High",
-    Low: "Low",
-    Medium: "Medium",
-    High: "High",
-    Extreme: "Extreme",
-  };
   const normalized = typeof value === "string" && value.length
     ? value.charAt(0).toUpperCase() + value.slice(1).toLowerCase()
     : "";
-  return lookup[normalized] ?? lookup[value] ?? "Medium";
+  return RISK.includes(normalized) ? normalized : "Medium";
 };
 
 const normalisePriority = (value) => {
@@ -176,7 +167,7 @@ export default function CreateScenario() {
   // —— Meta ——
   const [meta, setMeta] = useState({
     title: "",
-    risk: "Intermediate",
+    risk: "Medium",
     description: "",
   });
 
@@ -840,10 +831,15 @@ function validate(meta, questions) {
   if (!meta.title.trim()) out.push("Title is required.");
   if (!questions.length) out.push("Add at least one question.");
   questions.forEach((q, qi) => {
-    if (!q.text.trim()) out.push(`Q${qi + 1}: question text is required.`);
-    if (!q.options.length) out.push(`Q${qi + 1}: add at least one option.`);
-    const hasCorrect = q.options.some((o) => o.kind === "correct");
-    if (!hasCorrect) out.push(`Q${qi + 1}: mark one option as correct.`);
+    const questionLabel = `Q${qi + 1}`;
+    if (!q.text.trim()) out.push(`${questionLabel}: question text is required.`);
+    if (!q.options.length) out.push(`${questionLabel}: add at least one option.`);
+    const nonEmptyOptions = q.options.filter((o) => (o.text ?? "").trim().length > 0);
+    if (nonEmptyOptions.length !== q.options.length) {
+      out.push(`${questionLabel}: every option needs answer text.`);
+    }
+    const hasCorrect = nonEmptyOptions.some((o) => o.kind === "correct");
+    if (!hasCorrect) out.push(`${questionLabel}: mark one option as correct.`);
   });
   return out;
 }

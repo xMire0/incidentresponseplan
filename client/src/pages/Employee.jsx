@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { useNavigate } from "react-router-dom";
+import api from "../services/api";
 import "./employee.css";
 
 /* Palette (auto-rotates if scenario.color missing) */
@@ -16,16 +17,61 @@ const pickColor = (i, override) => override ?? THEME[i % THEME.length];
 /* LocalStorage key (shared with Train.jsx) */
 const reviewKey = (id) => `train:result:${id}`;
 
-/* Mock “API” – replace later */
-async function fetchScenarios() {
-  await new Promise(r => setTimeout(r, 450));
-  return [
-    { id:"scn-001", title:"Ransomware Detected",     difficulty:"Intermediate", tags:["Security","IR"],        est:"15–20 min", progress:0,   published:true },
-    { id:"scn-002", title:"Phishing Attack on Email",difficulty:"Beginner",     tags:["Email","Awareness"],   est:"10–15 min", progress:42,  published:true },
-    { id:"scn-003", title:"Data Breach – S3 Bucket", difficulty:"Advanced",     tags:["Cloud","Compliance"],  est:"25–30 min", progress:0,   published:true },
-    { id:"scn-004", title:"DDoS on Public API",      difficulty:"Intermediate", tags:["Ops","Network"],       est:"15–25 min", progress:100, published:true }, // one finished to demo
-  ];
-}
+const STATUS_META = {
+  NotStarted: { label: "Not started", className: "muted", progress: 0 },
+  InProgress: { label: "In progress", className: "amber", progress: 50 },
+  Completed: { label: "Completed", className: "green", progress: 100 },
+};
+
+const normaliseIncident = (incident, index) => {
+  if (!incident) return null;
+
+  const id = incident.id ?? incident.Id ?? null;
+  const scenario = incident.scenario ?? incident.Scenario ?? {};
+  const title = scenario.title ?? scenario.Title ?? incident.title ?? incident.Title ?? "Untitled incident";
+  const risk = scenario.risk ?? scenario.Risk ?? "Medium";
+  const difficulty = typeof risk === "string" ? risk : String(risk);
+  const tags = Array.from(
+    new Set(
+      (scenario.questions ?? scenario.Questions ?? []).flatMap((question) => {
+        const roles = Array.isArray(question.questionRoles ?? question.QuestionRoles)
+          ? question.questionRoles ?? question.QuestionRoles
+          : [];
+        return roles
+          .map((roleLink) => roleLink.role?.name ?? roleLink.role?.Name ?? roleLink.Role?.name ?? roleLink.Role?.Name)
+          .filter(Boolean);
+      })
+    )
+  );
+  const est = (scenario.questions ?? scenario.Questions)?.length
+    ? `${Math.max(5, (scenario.questions ?? scenario.Questions).length * 5)}–${Math.max(10, (scenario.questions ?? scenario.Questions).length * 7)} min`
+    : "10–15 min";
+
+  const rawStatus = incident.status ?? incident.Status ?? "NotStarted";
+  const statusKey = typeof rawStatus === "string" ? rawStatus : String(rawStatus);
+  const statusMeta = STATUS_META[statusKey] ?? STATUS_META.NotStarted;
+
+  let progress = statusMeta.progress;
+  try {
+    const saved = JSON.parse(localStorage.getItem(reviewKey(id)) || "null");
+    if (saved?.answers) progress = Math.max(progress, 100);
+  } catch {
+    // ignore localStorage errors
+  }
+
+  return {
+    id,
+    title,
+    difficulty,
+    tags: tags.length ? tags : [difficulty],
+    est,
+    statusKey,
+    statusLabel: statusMeta.label,
+    statusClass: statusMeta.className,
+    progress,
+    color: pickColor(index, scenario.color),
+  };
+};
 
 /* Icons */
 const IconLogout = () => (
@@ -54,6 +100,7 @@ export default function Employee() {
 
   const [loading, setLoading] = useState(true);
   const [scenarios, setScenarios] = useState([]);
+  const [error, setError] = useState(null);
 
   // ---- Optimized UI state (debounced + persisted) ----
   const saved = useRef(
@@ -64,7 +111,7 @@ export default function Employee() {
   );
   const [rawSearch, setRawSearch] = useState(saved.current.q ?? "");
   const [q, setQ] = useState(saved.current.q ?? "");
-  const [level, setLevel] = useState(saved.current.level ?? "All");
+  const [statusFilter, setStatusFilter] = useState(saved.current.status ?? "All");
 
   useEffect(() => {
     const t = setTimeout(() => setQ(rawSearch), 250);
@@ -72,57 +119,61 @@ export default function Employee() {
   }, [rawSearch]);
 
   useEffect(() => {
-    localStorage.setItem("emp-ui", JSON.stringify({ q, level }));
-  }, [q, level]);
+    localStorage.setItem("emp-ui", JSON.stringify({ q, statusFilter }));
+  }, [q, statusFilter]);
   // -----------------------------------------------------
 
   useEffect(() => {
-    let mount = true;
-    fetchScenarios().then(list => {
-      if (!mount) return;
-
-      // Inject color + auto-detect completion from localStorage
-      const pub = list
-        .filter(s => s.published)
-        .map((s, i) => {
-          const color = pickColor(i, s.color);
-          let status = s.status;
-          let progress = s.progress;
-
-          try {
-            const saved = JSON.parse(localStorage.getItem(reviewKey(s.id)) || "null");
-            if (saved?.answers) {
-              status = "completed";
-              progress = 100;
-            }
-          } catch {}
-
-          return { ...s, color, status, progress };
-        });
-
-      setScenarios(pub);
-      setLoading(false);
-    });
-    return () => { mount = false; };
-  }, []);
+    let active = true;
+    async function load() {
+      setLoading(true);
+      setError(null);
+      try {
+        const params = {};
+        if (statusFilter !== "All") params.status = statusFilter;
+        const { data } = await api.get("/api/incident", { params });
+        if (!active) return;
+        const incidents = Array.isArray(data) ? data : [];
+        const mapped = incidents
+          .map((incident, index) => normaliseIncident(incident, index))
+          .filter(Boolean);
+        setScenarios(mapped);
+      } catch (err) {
+        console.error("Failed to load incidents", err);
+        if (active) {
+          setError("Could not load incidents. Please try again later.");
+          setScenarios([]);
+        }
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+    load();
+    return () => {
+      active = false;
+    };
+  }, [statusFilter]);
 
   // Search + filter (applies to both sections)
   const filtered = useMemo(() => {
     const query = q.trim().toLowerCase();
-    return scenarios.filter(s => {
-      const mQ = !query || s.title.toLowerCase().includes(query) || s.tags.join(" ").toLowerCase().includes(query);
-      const mL = level === "All" || s.difficulty === level;
-      return mQ && mL;
+    return scenarios.filter((scenario) => {
+      const matchesQuery =
+        !query ||
+        scenario.title.toLowerCase().includes(query) ||
+        scenario.tags.join(" ").toLowerCase().includes(query);
+      const matchesStatus = statusFilter === "All" || scenario.statusKey === statusFilter;
+      return matchesQuery && matchesStatus;
     });
-  }, [q, level, scenarios]);
+  }, [q, statusFilter, scenarios]);
 
   // Split into active vs completed (structure only; visuals unchanged)
   const { active, completed } = useMemo(() => {
     const act = [];
     const comp = [];
-    for (const s of filtered) {
-      const done = s.status === "completed" || s.progress >= 100;
-      (done ? comp : act).push(s);
+    for (const scenario of filtered) {
+      const done = scenario.statusKey === "Completed" || scenario.progress >= 100;
+      (done ? comp : act).push(scenario);
     }
     act.sort((a, b) => (b.progress === 0) - (a.progress === 0)); // in-progress first
     comp.sort((a, b) => a.title.localeCompare(b.title));
@@ -180,8 +231,11 @@ export default function Employee() {
               placeholder="Search scenarios, tags…"
             />
           </div>
-          <select className="select" value={level} onChange={(e)=>setLevel(e.target.value)}>
-            <option>All</option><option>Beginner</option><option>Intermediate</option><option>Advanced</option>
+          <select className="select" value={statusFilter} onChange={(e)=>setStatusFilter(e.target.value)}>
+            <option value="All">All</option>
+            <option value="NotStarted">Not started</option>
+            <option value="InProgress">In progress</option>
+            <option value="Completed">Completed</option>
           </select>
         </div>
       </div>
@@ -189,13 +243,19 @@ export default function Employee() {
       {/* === SECTION 1: Begynd / Igangværende tests === */}
       <div className="container" style={{marginTop: 14}}>
         <div className="section-head" style={{display:"flex",alignItems:"center",gap:10,margin:"6px 0 10px"}}>
-          <h2 style={{margin:0, fontSize:18, fontWeight:800}}>Begynd / Igangværende tests</h2>
+          <h2 style={{margin:0, fontSize:18, fontWeight:800}}>Open / In progress incidents</h2>
           <span className="pill" aria-label="count">{active.length}</span>
         </div>
 
         <div className="grid">
           {loading ? (
             Array.from({length:3}).map((_,i) => <div className="card skeleton" key={i}/>)
+          ) : error ? (
+            <div className="empty">
+              <div className="empty-badge"><IconSpark/></div>
+              <h3>Could not load incidents</h3>
+              <p>{error}</p>
+            </div>
           ) : active.length === 0 ? (
             <div className="empty">
               <div className="empty-badge"><IconSpark/></div>
@@ -243,7 +303,7 @@ export default function Employee() {
                           background: `linear-gradient(90deg, ${s.color.from}, ${s.color.to})`
                         }}
                       />
-                      <i>{s.progress ? `${s.progress}%` : "Not started"}</i>
+                      <i>{s.progress ? `${s.progress}%` : s.statusLabel}</i>
                     </div>
                   </div>
 
@@ -254,7 +314,7 @@ export default function Employee() {
                       onClick={() => startScenario(s)}
                     >
                       <span className="shine" />
-                      {s.progress ? "Continue" : "Start test"}
+                      {s.progress ? "Continue" : "Start incident"}
                     </button>
                   </div>
                 </div>
@@ -267,13 +327,19 @@ export default function Employee() {
       {/* === SECTION 2: Afsluttede tests === */}
       <div className="container" style={{marginTop: 28, marginBottom: 28}}>
         <div className="section-head" style={{display:"flex",alignItems:"center",gap:10,margin:"6px 0 10px"}}>
-          <h2 style={{margin:0, fontSize:18, fontWeight:800}}>Afsluttede tests</h2>
+          <h2 style={{margin:0, fontSize:18, fontWeight:800}}>Completed incidents</h2>
           <span className="pill" aria-label="count">{completed.length}</span>
         </div>
 
         <div className="grid">
           {loading ? (
             Array.from({length:2}).map((_,i) => <div className="card skeleton" key={i}/>)
+          ) : error ? (
+            <div className="empty">
+              <div className="empty-badge"><IconSpark/></div>
+              <h3>Could not load incidents</h3>
+              <p>{error}</p>
+            </div>
           ) : completed.length === 0 ? (
             <div className="empty">
               <div className="empty-badge"><IconSpark/></div>

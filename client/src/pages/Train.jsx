@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
+import api from "../services/api";
 import "./train.css";
 
 /* —— palette helpers —— */
@@ -12,183 +13,133 @@ const THEME = [
   { from: "#f59e0b", to: "#ef4444" }, // amber → red
 ];
 const pickColor = (i) => THEME[i % THEME.length];
+const GUID_REGEX = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+
+const toGuidString = (value) => {
+  if (!value) return null;
+  if (typeof value === "string" && GUID_REGEX.test(value)) return value.toLowerCase();
+  return null;
+};
 
 /* —— localStorage helpers —— */
 const reviewKey = (id) => `train:result:${id}`;
 const isReviewMode = () => new URLSearchParams(window.location.search).get("review") === "1";
 
-/* —— mock API for one scenario (ID-aware) —— */
-async function fetchScenarioDetail(id){
-  await new Promise(r=>setTimeout(r,350));
+/* backend scenario normalizer */
+const normalizeIncidentScenario = (incident, scenario) => {
+  const incidentId = incident.id ?? incident.Id ?? null;
+  const scenarioId = scenario.id ?? scenario.Id ?? null;
+  const title = scenario.title ?? scenario.Title ?? incident.title ?? incident.Title ?? "Untitled incident";
+  const rawRisk = scenario.risk ?? scenario.Risk ?? "Medium";
+  const difficulty = typeof rawRisk === "string" ? rawRisk : String(rawRisk);
+  const questions = Array.isArray(scenario.questions ?? scenario.Questions)
+    ? scenario.questions ?? scenario.Questions
+    : [];
 
-  const SEC_TRIAGE = {
-    id:"sec-1",
-    title:"Triage & Containment",
-    questions:[
-      {
-        id:"q1",
-        text:"What is your first action when detecting ransomware activity?",
-        options:[
-          { id:"a", text:"Disconnect affected servers from the network immediately.", score:10, kind:"correct" },
-          { id:"b", text:"Run antivirus scans on all systems right away.",            score:2,  kind:"incorrect" },
-          { id:"c", text:"Inform customers that data may be lost.",                    score:2,  kind:"incorrect" },
-          { id:"d", text:"I did not take any action.",                                 score:0,  kind:"none" },
-        ],
-      },
-      {
-        id:"q2",
-        text:"After isolating servers, what should be your next priority?",
-        options:[
-          { id:"a", text:"Restore systems from backup immediately.",             score:2,  kind:"incorrect" },
-          { id:"b", text:"Notify the incident response team and security lead.", score:10, kind:"correct"   },
-          { id:"c", text:"Delete encrypted files to save storage.",              score:2,  kind:"incorrect" },
-          { id:"d", text:"I did not take any action.",                           score:0,  kind:"none"      },
-        ],
-      },
-    ],
+  const color = pickColor(title.length + questions.length);
+
+  const questionRoleIds = new Set();
+
+  const sections = [
+    {
+      id: `sec-${scenarioId ?? incidentId ?? Math.random().toString(36).slice(2, 8)}`,
+      title: "Assessment",
+      questions: questions
+        .map((question) => {
+          const questionId = toGuidString(question.id ?? question.Id);
+          if (!questionId) return null;
+          const questionText = question.text ?? question.Text ?? "Untitled question";
+          const answerOptions = Array.isArray(question.answerOptions ?? question.AnswerOptions)
+            ? question.answerOptions ?? question.AnswerOptions
+            : [];
+          const rawRoles = Array.isArray(question.questionRoles ?? question.QuestionRoles)
+            ? question.questionRoles ?? question.QuestionRoles
+            : [];
+          const roleIds = rawRoles
+            .map((roleLink) =>
+              toGuidString(
+                roleLink.roleId ??
+                  roleLink.RoleId ??
+                  roleLink.role?.id ??
+                  roleLink.role?.Id ??
+                  roleLink.Role?.id ??
+                  roleLink.Role?.Id
+              )
+            )
+            .filter(Boolean);
+          roleIds.forEach((roleId) => questionRoleIds.add(roleId));
+
+          const correctCount = answerOptions.filter((option) => option?.isCorrect ?? option?.IsCorrect).length;
+
+          return {
+            id: questionId,
+            text: questionText,
+            options: answerOptions
+              .map((option) => {
+                const optionId = toGuidString(option.id ?? option.Id);
+                if (!optionId) return null;
+                const text = option.text ?? option.Text ?? "";
+                const isCorrect = Boolean(option.isCorrect ?? option.IsCorrect);
+                const weight = Number(option.weight ?? option.Weight ?? 0);
+                const kind = isCorrect ? "correct" : weight > 0 ? "partial" : "incorrect";
+                const normalizedScore = isCorrect ? Math.max(10, weight || 10) : weight;
+                return {
+                  id: optionId,
+                  text,
+                  score: normalizedScore,
+                  kind,
+                };
+              })
+              .filter((option) => option && option.text.length > 0),
+            correctCount,
+            roleIds,
+          };
+        })
+        .filter((question) => question && question.options.length > 0),
+    },
+  ];
+
+  const tags = Array.from(
+    new Set(
+      questions.flatMap((question) => {
+        const roles = Array.isArray(question.questionRoles ?? question.QuestionRoles)
+          ? question.questionRoles ?? question.QuestionRoles
+          : [];
+        return roles
+          .map((questionRole) => questionRole.role?.name ?? questionRole.role?.Name ?? questionRole.Role?.name ?? questionRole.Role?.Name)
+          .filter(Boolean);
+      })
+    )
+  );
+
+  const est = questions.length ? `${Math.max(5, questions.length * 5)}–${Math.max(10, questions.length * 7)} min` : "10–15 min";
+
+  const rawStatus = incident.status ?? incident.Status ?? "NotStarted";
+  const statusKey = typeof rawStatus === "string" ? rawStatus : String(rawStatus);
+
+  return {
+    id: incidentId,
+    scenarioId,
+    title,
+    difficulty,
+    tags: tags.length ? tags : [difficulty],
+    est,
+    color,
+    sections,
+    statusKey,
+    isCompleted: statusKey === "Completed",
+    roleIds: Array.from(questionRoleIds),
   };
+};
 
-  const SEC_COMMS = {
-    id:"sec-2",
-    title:"Preservation & Communication",
-    questions:[
-      {
-        id:"q3",
-        text:"What data is most critical to preserve during a ransomware incident?",
-        options:[
-          { id:"a", text:"Encrypted system files only.",                       score:2,  kind:"incorrect" },
-          { id:"b", text:"User data and temp logs.",                           score:5,  kind:"partial"   },
-          { id:"c", text:"All forensic logs and system images before reboot.", score:10, kind:"correct"   },
-          { id:"d", text:"I didn’t preserve any data.",                        score:0,  kind:"none"      },
-        ],
-      },
-      {
-        id:"q4",
-        text:"When should communication with management occur?",
-        options:[
-          { id:"a", text:"Immediately after detection to escalate response.", score:10, kind:"correct"   },
-          { id:"b", text:"Only after resolving the issue.",                   score:2,  kind:"incorrect" },
-          { id:"c", text:"When ransom note includes customer data threats.",  score:2,  kind:"incorrect" },
-          { id:"d", text:"I didn’t communicate with management.",             score:0,  kind:"none"      },
-        ],
-      },
-      {
-        id:"q5",
-        text:"What’s the correct procedure regarding ransom payment?",
-        options:[
-          { id:"a", text:"Pay the ransom if the data is mission-critical.",    score:2,  kind:"incorrect" },
-          { id:"b", text:"Contact legal and law enforcement before deciding.", score:10, kind:"correct"   },
-          { id:"c", text:"Ask IT to handle the payment internally.",           score:2,  kind:"incorrect" },
-          { id:"d", text:"I didn’t escalate or respond.",                      score:0,  kind:"none"      },
-        ],
-      },
-    ],
-  };
+const normalizeIncidentData = (raw) => {
+  if (!raw) return null;
 
-  const MAP = {
-    "scn-001": {
-      id:"scn-001",
-      title:"Ransomware Detected",
-      difficulty:"Intermediate",
-      tags:["Security","IR"],
-      est:"15–20 min",
-      color: pickColor(0),
-      sections:[SEC_TRIAGE, SEC_COMMS],
-    },
-    "scn-002": {
-      id:"scn-002",
-      title:"Phishing Attack on Email",
-      difficulty:"Beginner",
-      tags:["Email","Awareness"],
-      est:"10–15 min",
-      color: pickColor(1),
-      sections:[
-        {
-          id:"sec-1",
-          title:"Identify & Report",
-          questions:[
-            {
-              id:"q1",
-              text:"Which indicators suggest an email is phishing?",
-              options:[
-                { id:"a", text:"Urgent language and mismatched links.", score:10, kind:"correct" },
-                { id:"b", text:"Proper grammar and a company logo.",    score:2,  kind:"incorrect" },
-                { id:"c", text:"Sent from a colleague address",         score:2,  kind:"incorrect" },
-              ],
-            },
-          ],
-        },
-        {
-          id:"sec-2",
-          title:"Containment",
-          questions:[
-            {
-              id:"q2",
-              text:"What is the FIRST action after clicking a suspicious link?",
-              options:[
-                { id:"a", text:"Disconnect from the network and inform IT.", score:10, kind:"correct" },
-                { id:"b", text:"Ignore it if no download started.",          score:2,  kind:"incorrect" },
-                { id:"c", text:"Forward to coworkers to check.",             score:0,  kind:"none" },
-              ],
-            },
-          ],
-        },
-      ],
-    },
-    "scn-003": {
-      id:"scn-003",
-      title:"Data Breach – S3 Bucket",
-      difficulty:"Advanced",
-      tags:["Cloud","Compliance"],
-      est:"25–30 min",
-      color: pickColor(2),
-      sections:[
-        {
-          id:"sec-1",
-          title:"Scope & Access",
-          questions:[
-            {
-              id:"q1",
-              text:"Best immediate remediation for public S3 bucket exposure?",
-              options:[
-                { id:"a", text:"Block public access and rotate IAM creds.", score:10, kind:"correct" },
-                { id:"b", text:"Delete the bucket to be safe.",             score:2,  kind:"incorrect" },
-                { id:"c", text:"Wait and monitor for a week.",              score:0,  kind:"none" },
-              ],
-            },
-          ],
-        },
-      ],
-    },
-    "scn-004": {
-      id:"scn-004",
-      title:"DDoS on Public API",
-      difficulty:"Intermediate",
-      tags:["Ops","Network"],
-      est:"15–25 min",
-      color: pickColor(3),
-      sections:[
-        {
-          id:"sec-1",
-          title:"Mitigation",
-          questions:[
-            {
-              id:"q1",
-              text:"Which is MOST effective as an immediate DDoS response?",
-              options:[
-                { id:"a", text:"Enable rate limiting / WAF rules.", score:10, kind:"correct" },
-                { id:"b", text:"Scale databases first.",             score:2,  kind:"incorrect" },
-                { id:"c", text:"Disable TLS to speed traffic.",      score:2,  kind:"incorrect" },
-              ],
-            },
-          ],
-        },
-      ],
-    },
-  };
+  const scenario = raw.scenario ?? raw.Scenario ?? null;
+  if (!scenario) return null;
 
-  return MAP[id] ?? MAP["scn-001"];
-}
+  return normalizeIncidentScenario(raw, scenario);
+};
 
 /* small icons */
 const IconBack = () => (
@@ -226,10 +177,11 @@ const arr = (v) => Array.isArray(v) ? v : (v ? [v] : []);
 export default function Train(){
   const { id } = useParams();
   const navigate = useNavigate();
-  const { logout } = useAuth(); // available if you add a top-right menu later
+  const { user } = useAuth();
 
   const [loading, setLoading] = useState(true);
   const [sc, setSc] = useState(null);
+  const [error, setError] = useState(null);
 
   // answers: { [qid]: string[] }  (multi-select)
   const [answers, setAnswers] = useState({});
@@ -242,22 +194,44 @@ export default function Train(){
 
   useEffect(()=>{
     let live = true;
-    fetchScenarioDetail(id).then(d => {
-      if(!live) return;
-      setSc(d);
-      setLoading(false);
-
-      // Hydrate saved answers in review mode (locks the UI)
-      if (review) {
-        try {
-          const saved = JSON.parse(localStorage.getItem(reviewKey(d.id)) || "null");
-          if (saved?.answers) {
-            setAnswers(saved.answers);
-            setSubmitted(true);
+    setLoading(true);
+    setError(null);
+    api
+      .get(`/api/incident/${id}`)
+      .then(({ data }) => {
+        if (!live) return;
+        const detail = normalizeIncidentData(data);
+        if (!detail) {
+          setError("Scenario not found.");
+          setSc(null);
+          return;
+        }
+        setSc(detail);
+        if (detail.isCompleted) {
+          setSubmitted(true);
+        }
+        if (review || detail.isCompleted) {
+          try {
+            const saved = JSON.parse(localStorage.getItem(reviewKey(detail.id)) || "null");
+            if (saved?.answers) {
+              setAnswers(saved.answers);
+              setSubmitted(true);
+            }
+          } catch {
+            // ignore hydration errors
           }
-        } catch {}
-      }
-    });
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to load scenario", err);
+        if (live) {
+          setError("Could not load scenario. Please try again later.");
+          setSc(null);
+        }
+      })
+      .finally(() => {
+        if (live) setLoading(false);
+      });
     return () => { live = false; };
   },[id, review]);
 
@@ -322,9 +296,9 @@ export default function Train(){
     });
   };
 
-  const submit = () => {
+  const submit = async () => {
+    if (!sc) return;
     setSubmitted(true);
-    // Persist for Employee page detection + review mode
     try {
       localStorage.setItem(
         reviewKey(sc.id),
@@ -335,7 +309,44 @@ export default function Train(){
           completedAt: new Date().toISOString(),
         })
       );
-    } catch {}
+    } catch {
+      // no-op if localStorage is unavailable
+    }
+
+    const defaultRoleId = sc.roleIds?.find((roleId) => GUID_REGEX.test(roleId)) ?? null;
+
+    const bulkPayload = {
+      incidentId: sc.id,
+      markCompleted: true,
+      responses: allQs.flatMap((question) => {
+        const picks = arr(answers[question.id]);
+        if (!picks.length) return [];
+        return picks.map((optionId) => {
+          const roleCandidate =
+            Array.isArray(question.roleIds) && question.roleIds.length > 0
+              ? question.roleIds.find((roleId) => GUID_REGEX.test(roleId))
+              : defaultRoleId;
+          if (!roleCandidate) return null;
+          return {
+            incidentId: sc.id,
+            questionId: question.id,
+            answerOptionId: optionId,
+            answer: null,
+            roleId: roleCandidate,
+            userId: null,
+            userEmail: user?.email ?? null,
+            answeredAt: new Date().toISOString(),
+          };
+        }).filter(Boolean);
+      }),
+    };
+
+    try {
+      await api.post("/api/response/bulk", bulkPayload);
+    } catch (err) {
+      console.error("Failed to persist responses", err);
+    }
+
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -355,6 +366,29 @@ export default function Train(){
       </div>
     );
   }
+  if (error) {
+    return (
+      <div className="trainX">
+        <div className="bg-blob t-a"/><div className="bg-blob t-b"/><div className="bg-blob t-c"/>
+        <div className="container">
+          <div className="train-shell">
+            <div className="header glass" style={{ justifyContent: "space-between" }}>
+              <button className="btn-ghost" onClick={() => navigate("/employee") }>
+                <span className="ico"><IconBack/></span> Back
+              </button>
+            </div>
+            <div className="layout">
+              <main className="main glass" style={{ padding: 24 }}>
+                <h3 style={{ marginTop: 0 }}>Unable to load scenario</h3>
+                <p className="muted">{error}</p>
+              </main>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (!sc) return null;
 
   // If user opened /train/:id?review=1 but no saved attempt exists

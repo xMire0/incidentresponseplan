@@ -174,8 +174,7 @@ export default function ViewSpecificIncident() {
   const [loading, setLoading] = useState(true);
   const [incident, setIncident] = useState(null);
   const [error, setError] = useState(null);
-  const [exporting, setExporting] = useState(false);
-
+  
   useEffect(() => {
     if (!id) return;
     let active = true;
@@ -265,12 +264,7 @@ export default function ViewSpecificIncident() {
           </div>
 
           <div className="right-buttons">
-            <button className="btn-secondary" onClick={generateIncidentPDF} disabled={exporting}>
-              {exporting ? "Generating…" : "⬇ Generate Report (PDF)"}
-            </button>
-            <button className="btn-outlined" onClick={() => navigate(-1)}>
-              ← Back
-            </button>
+           
           </div>
         </div>
       </div>
