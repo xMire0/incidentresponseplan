@@ -1,84 +1,39 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import api from "../services/api";
 import "./ViewResults.css";
 
-/* ── Mock API (replace with real endpoints) ─────────────────────────────── */
-
-// scenarios
-const SCENARIOS = [
-  { id: "scn-001", title: "Ransomware Detected", maxScore: 50 },
-  { id: "scn-002", title: "Phishing Attack on Email", maxScore: 40 },
-  { id: "scn-003", title: "Data Breach — S3 Bucket", maxScore: 60 },
-];
-
-// teams
-const TEAMS = [
-  { id: "t-ops",     name: "IT Ops" },
-  { id: "t-sec",     name: "Security" },
-  { id: "t-support", name: "Support" },
-  { id: "t-sales",   name: "Sales" },
-  { id: "t-eng",     name: "Engineering" },
-];
-
-const NAMES = ["alex", "sam", "noah", "morgan", "jordan", "taylor", "chris"];
-const DOMAINS = ["acme.com", "contoso.com", "globex.io", "mail.test"];
-function rand(a, b) { return Math.floor(Math.random() * (b - a + 1)) + a; }
-function pick(arr) { return arr[rand(0, arr.length - 1)]; }
-
 async function fetchResults() {
-  await new Promise(r => setTimeout(r, 350));
-  const rows = Array.from({ length: 90 }).map((_, i) => {
-    const s = pick(SCENARIOS);
-    const score = rand(0, s.maxScore);
-    const pct = Math.round((score / s.maxScore) * 100);
-    const email = `${pick(NAMES)}.${rand(1, 999)}@${pick(DOMAINS)}`;
-    const date = new Date(Date.now() - rand(0, 45) * 86400000);
-    const durationSec = rand(4, 25) * 60 + rand(0, 59);
-    const team = pick(TEAMS);
-    const detail = mockDetail(s, score);
-    return {
-      id: `run-${i.toString().padStart(3, "0")}`,
-      userEmail: email,
-      scenarioId: s.id,
-      scenarioTitle: s.title,
-      score,
-      maxScore: s.maxScore,
-      pct,
-      status: pct >= 70 ? "pass" : "fail",
-      completedAt: date.toISOString(),
-      durationSec,
-      teamId: team.id,
-      teamName: team.name,
-      detail,
-    };
-  });
-  return rows.sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt));
+  const { data } = await api.get("/api/incident/results");
+  return Array.isArray(data) ? data : [];
 }
-
-function mockDetail(sc, score) {
-  const qn = 5;
-  const pct = Math.round((score / sc.maxScore) * 100);
-  const probs = pct >= 80 ? [1,1,1,1,0.7] : pct >= 60 ? [1,1,0.7,0.4,0.2] : [1,0.6,0.3,0.2,0.1];
-  return Array.from({ length: qn }).map((_, i) => {
-    const truth = Math.random() < probs[i] ? "correct" : (Math.random() < 0.25 ? "partial" : "incorrect");
-    return {
-      qid: `q${i + 1}`,
-      text: `Question ${i + 1} about ${sc.title}`,
-      chosen: ["A","B","C","D"][rand(0,3)],
-      verdict: truth,
-      points: truth === "correct" ? 10 : truth === "partial" ? 5 : 0,
-      max: 10
-    };
-  });
-}
-
-/* ── Component ──────────────────────────────────────────────────────────── */
 
 export default function ViewResults() {
   const navigate = useNavigate();
 
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState([]);
+  const scenarioOptions = useMemo(() => {
+    const map = new Map();
+    rows.forEach(r => {
+      if (r.scenarioId && r.scenarioTitle)
+        map.set(r.scenarioId, r.scenarioTitle);
+    });
+    return Array.from(map.entries()).map(([id, title]) => ({ id, title }));
+  }, [rows]);
+  const teamOptions = useMemo(() => {
+    const map = new Map();
+    rows.forEach(r => {
+      if (r.teamId && r.teamName)
+        map.set(r.teamId, r.teamName);
+    });
+    return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
+  }, [rows]);
+  const teamNameMap = useMemo(() => {
+    const map = new Map();
+    teamOptions.forEach(team => map.set(team.id, team.name));
+    return map;
+  }, [teamOptions]);
 
   // existing filters
   const [scenario, setScenario]   = useState("all");
@@ -243,11 +198,11 @@ export default function ViewResults() {
     );
   }
 
-  const teamName = teamId ? (TEAMS.find(t => t.id === teamId)?.name || "Team") : "";
+  const teamName = teamId ? (teamNameMap.get(teamId) ?? "Team") : "";
   const rightTitle =
     compareMode === "org"
       ? "Org"
-      : (TEAMS.find(t => t.id === compareTeamId)?.name || "Team");
+      : (compareTeamId ? (teamNameMap.get(compareTeamId) ?? "Team") : "Team");
 
   return (
     <>
@@ -279,7 +234,7 @@ export default function ViewResults() {
                 {compareMode === "org"
                   ? "vs Org"
                   : (compareTeamId
-                      ? `vs ${TEAMS.find(t => t.id === compareTeamId)?.name || "Team"}`
+                  ? `vs ${teamNameMap.get(compareTeamId) ?? "Team"}`
                       : "(select a team to compare)")}
               </span>
             )}
@@ -312,7 +267,7 @@ export default function ViewResults() {
               rightTitle={rightTitle}
               right={baseline}
               showTeamGrid={compareMode === "team" && !compareTeamId}
-              teams={TEAMS.filter(t => t.id !== teamId)}
+              teams={teamOptions.filter(t => t.id !== teamId)}
               onPickTeam={setCompareTeamId}
             />
           )}
@@ -322,7 +277,11 @@ export default function ViewResults() {
             {/* Existing filter row */}
             <select className="input" value={scenario} onChange={e => setScenario(e.target.value)}>
               <option value="all">All scenarios</option>
-              {SCENARIOS.map(s => <option key={s.id} value={s.id}>{s.title}</option>)}
+              {scenarioOptions.map(s => (
+                <option key={s.id} value={s.id}>
+                  {s.title}
+                </option>
+              ))}
             </select>
 
             <input
@@ -357,8 +316,10 @@ export default function ViewResults() {
                 title="Filter by team"
               >
                 <option value="">All teams</option>
-                {TEAMS.map(t => (
-                  <option key={t.id} value={t.id}>{t.name}</option>
+                {teamOptions.map(t => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
                 ))}
               </select>
 
@@ -386,9 +347,13 @@ export default function ViewResults() {
                   title="Compare against…"
                 >
                   <option value="" disabled>Select team to compare</option>
-                  {TEAMS
+                  {teamOptions
                     .filter(t => t.id !== teamId)
-                    .map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                    .map(t => (
+                      <option key={t.id} value={t.id}>
+                        {t.name}
+                      </option>
+                    ))}
                 </select>
               )}
 
@@ -449,14 +414,16 @@ export default function ViewResults() {
                 <div className="empty">No results match your filters.</div>
               ) : (
                 <div className="t-body">
-                  {pageRows.map(r => (
+                  {pageRows.map(r => {
+                    const teamLabel = r.teamName || teamNameMap.get(r.teamId) || "—";
+                    return (
                     <div className="t-row" key={r.id + "-" + r.__cohort}>
                       <div className="c user">
                         <span className="avatar">{r.userEmail[0].toUpperCase()}</span>
                         <div className="u">
                           <b>{r.userEmail}</b>
                           <small className="muted">{r.id}</small>
-                          <small className="muted">Team: {r.teamName}</small>
+                          <small className="muted">Team: {teamLabel}</small>
                           {/* cohort tag with leading space to avoid jammed text */}
                           {teamId && (
                             <small className="muted">
@@ -490,7 +457,7 @@ export default function ViewResults() {
                         <button className="btn-ghost" onClick={() => setOpen(r)}>View</button>
                       </div>
                     </div>
-                  ))}
+                  )})}
                 </div>
               )}
             </div>
@@ -534,7 +501,7 @@ export default function ViewResults() {
             </div>
 
             <div className="q-list">
-              {open.detail.map((q) => (
+              {(open.detail ?? []).map((q) => (
                 <div className="q" key={q.qid}>
                   <div className="q-top">
                     <b>{q.qid}</b>
@@ -565,7 +532,10 @@ export default function ViewResults() {
 function arrow(dir){ return <span className={`arr ${dir}`} />; }
 
 function fmtDuration(sec){
-  const m = Math.floor(sec / 60), s = sec % 60;
+  const total = Number(sec);
+  if (!Number.isFinite(total) || total <= 0) return "0m 00s";
+  const m = Math.floor(total / 60);
+  const s = Math.floor(total % 60);
   return `${m}m ${s.toString().padStart(2,"0")}s`;
 }
 

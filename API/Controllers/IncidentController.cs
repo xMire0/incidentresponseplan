@@ -36,6 +36,12 @@ public class IncidentController : BaseApiController
         return Ok(incidentId); 
     }
 
+    [HttpGet("results")]
+    public async Task<ActionResult<List<GetIncidentResults.IncidentResultDto>>> GetIncidentResults()
+    {
+        return await Mediator.Send(new GetIncidentResults.Query());
+    }
+
     [HttpDelete("{id}")]
 
     public async Task<IActionResult> DeleteIncident(Guid id)
