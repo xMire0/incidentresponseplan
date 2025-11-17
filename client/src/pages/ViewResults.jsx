@@ -1,12 +1,23 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import "./ViewResults.css";
 
-/* ── Mock API (replace with your real endpoints later) ───────────────────── */
+/* ── Mock API (replace with real endpoints) ─────────────────────────────── */
+
+// scenarios
 const SCENARIOS = [
   { id: "scn-001", title: "Ransomware Detected", maxScore: 50 },
   { id: "scn-002", title: "Phishing Attack on Email", maxScore: 40 },
   { id: "scn-003", title: "Data Breach — S3 Bucket", maxScore: 60 },
+];
+
+// teams
+const TEAMS = [
+  { id: "t-ops",     name: "IT Ops" },
+  { id: "t-sec",     name: "Security" },
+  { id: "t-support", name: "Support" },
+  { id: "t-sales",   name: "Sales" },
+  { id: "t-eng",     name: "Engineering" },
 ];
 
 const NAMES = ["alex", "sam", "noah", "morgan", "jordan", "taylor", "chris"];
@@ -16,15 +27,15 @@ function pick(arr) { return arr[rand(0, arr.length - 1)]; }
 
 async function fetchResults() {
   await new Promise(r => setTimeout(r, 350));
-  // fabricate ~90 rows
   const rows = Array.from({ length: 90 }).map((_, i) => {
     const s = pick(SCENARIOS);
     const score = rand(0, s.maxScore);
     const pct = Math.round((score / s.maxScore) * 100);
     const email = `${pick(NAMES)}.${rand(1, 999)}@${pick(DOMAINS)}`;
-    const date = new Date(Date.now() - rand(0, 45) * 86400000); // within 45 days
+    const date = new Date(Date.now() - rand(0, 45) * 86400000);
     const durationSec = rand(4, 25) * 60 + rand(0, 59);
-    const detail = mockDetail(s, score); // per-question mock
+    const team = pick(TEAMS);
+    const detail = mockDetail(s, score);
     return {
       id: `run-${i.toString().padStart(3, "0")}`,
       userEmail: email,
@@ -36,75 +47,163 @@ async function fetchResults() {
       status: pct >= 70 ? "pass" : "fail",
       completedAt: date.toISOString(),
       durationSec,
+      teamId: team.id,
+      teamName: team.name,
       detail,
     };
   });
-  return rows.sort((a,b)=>new Date(b.completedAt)-new Date(a.completedAt));
+  return rows.sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt));
 }
 
 function mockDetail(sc, score) {
-  // fake 5 questions with correctness distribution based on score %
   const qn = 5;
   const pct = Math.round((score / sc.maxScore) * 100);
   const probs = pct >= 80 ? [1,1,1,1,0.7] : pct >= 60 ? [1,1,0.7,0.4,0.2] : [1,0.6,0.3,0.2,0.1];
-  return Array.from({length: qn}).map((_,i)=>({
-    qid: `q${i+1}`,
-    text: `Question ${i+1} about ${sc.title}`,
-    chosen: ["A","B","C","D"][rand(0,3)],
-    verdict: Math.random() < probs[i] ? "correct" : (Math.random()<0.25?"partial":"incorrect"),
-    points:  (v => v==="correct"?10:v==="partial"?5:0)(Math.random()<probs[i]? "correct": (Math.random()<0.25?"partial":"incorrect")),
-    max: 10
-  }));
+  return Array.from({ length: qn }).map((_, i) => {
+    const truth = Math.random() < probs[i] ? "correct" : (Math.random() < 0.25 ? "partial" : "incorrect");
+    return {
+      qid: `q${i + 1}`,
+      text: `Question ${i + 1} about ${sc.title}`,
+      chosen: ["A","B","C","D"][rand(0,3)],
+      verdict: truth,
+      points: truth === "correct" ? 10 : truth === "partial" ? 5 : 0,
+      max: 10
+    };
+  });
 }
-/* ───────────────────────────────────────────────────────────────────────── */
+
+/* ── Component ──────────────────────────────────────────────────────────── */
 
 export default function ViewResults() {
   const navigate = useNavigate();
+
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState([]);
 
-  // filters
-  const [scenario, setScenario] = useState("all");
-  const [q, setQ]         = useState("");        // search
-  const [verdict, setVerdict] = useState("all"); // pass|fail|all
-  const [from, setFrom]   = useState("");        // YYYY-MM-DD
-  const [to, setTo]       = useState("");        // YYYY-MM-DD
+  // existing filters
+  const [scenario, setScenario]   = useState("all");
+  const [q, setQ]                 = useState("");
+  const [verdict, setVerdict]     = useState("all");
+  const [from, setFrom]           = useState("");
+  const [to, setTo]               = useState("");
 
-  // paging & sorting
-  const [page, setPage]   = useState(1);
+  // new: team + compare
+  const [teamId, setTeamId]                 = useState("");       // main team filter ("" = all)
+  const [compareMode, setCompareMode]       = useState("org");    // "org" | "team"
+  const [compareTeamId, setCompareTeamId]   = useState("");
+
+  // NEW: which cohort(s) to show in the table
+  const [tableView, setTableView] = useState("team"); // "team" | "baseline" | "both"
+
+  // table sort/paging
+  const [page, setPage] = useState(1);
   const pageSize = 12;
-  const [sort, setSort]   = useState({ by: "completedAt", dir: "desc" });
+  const [sort, setSort] = useState({ by: "completedAt", dir: "desc" });
 
-  const [open, setOpen]   = useState(null); // selected run for drawer
+  // drawer
+  const [open, setOpen] = useState(null);
 
   useEffect(() => {
     let live = true;
-    fetchResults().then(list => { if (live) { setRows(list); setLoading(false); }});
+    fetchResults().then(list => {
+      if (!live) return;
+      setRows(list);
+      setLoading(false);
+    });
     return () => { live = false; };
   }, []);
 
-  const filtered = useMemo(() => {
-    return rows.filter(r => {
-      if (scenario !== "all" && r.scenarioId !== scenario) return false;
-      if (verdict !== "all" && r.status !== verdict) return false;
-      if (q && !(`${r.userEmail} ${r.scenarioTitle}`.toLowerCase().includes(q.toLowerCase()))) return false;
-      if (from && new Date(r.completedAt) < new Date(from)) return false;
-      if (to   && new Date(r.completedAt) > new Date(`${to}T23:59:59`)) return false;
-      return true;
-    });
-  }, [rows, scenario, q, verdict, from, to]);
+  // predicate shared by current + comparison cohorts
+  const basePredicate = useCallback((r) => {
+    if (scenario !== "all" && r.scenarioId !== scenario) return false;
+    if (verdict !== "all" && r.status !== verdict) return false;
+    if (q && !(`${r.userEmail} ${r.scenarioTitle}`.toLowerCase().includes(q.toLowerCase()))) return false;
+    if (from && new Date(r.completedAt) < new Date(from)) return false;
+    if (to && new Date(r.completedAt) > new Date(`${to}T23:59:59`)) return false;
+    return true;
+  }, [scenario, verdict, q, from, to]);
 
+  // filtered for the current view (selected team only)
+  const filtered = useMemo(
+    () => rows.filter(r => basePredicate(r) && (!teamId || r.teamId === teamId)),
+    [rows, basePredicate, teamId]
+  );
+
+  // comparison cohorts
+  const cohortOrg = useMemo(
+    () => rows.filter(r => basePredicate(r)),
+    [rows, basePredicate]
+  );
+  const cohortCompareTeam = useMemo(
+    () => (compareMode === "team" && compareTeamId)
+      ? rows.filter(r => basePredicate(r) && r.teamId === compareTeamId)
+      : [],
+    [rows, basePredicate, compareMode, compareTeamId]
+  );
+
+  // When compare is enabled/changed, default table to show both cohorts
+  useEffect(() => {
+    if (teamId && (compareMode === "org" || (compareMode === "team" && compareTeamId))) {
+      setTableView("both");
+    } else if (!teamId) {
+      setTableView("team");
+    }
+  }, [teamId, compareMode, compareTeamId]);
+
+  // metrics
+  const calcMetrics = (list) => {
+    const n = list.length || 1;
+    const avgPct = Math.round(list.reduce((s, r) => s + r.pct, 0) / n);
+    const passRate = Math.round(list.filter(r => r.status === "pass").length / n * 100);
+    const runs = list.length;
+    return { avgPct, passRate, runs };
+  };
+
+  const metrics = calcMetrics(filtered);
+  const baselineList = (compareMode === "org") ? cohortOrg : cohortCompareTeam;
+  const baseline = teamId
+    ? calcMetrics(baselineList)
+    : null;
+
+  const deltas = baseline ? {
+    avgPct: metrics.avgPct - baseline.avgPct,
+    passRate: metrics.passRate - baseline.passRate,
+    runs: metrics.runs - baseline.runs,
+  } : null;
+
+  // Build the actual table rows based on tableView
+  const tableRows = useMemo(() => {
+    // No team selected → just the normal filtered set
+    if (!teamId) return filtered.map(r => ({ ...r, __cohort: "team" }));
+
+    const teamRows = filtered.map(r => ({ ...r, __cohort: "team" }));
+
+    // If baseline is Org and we are showing both, exclude selected team
+    const baseRowsRaw = baselineList || [];
+    const baseRowsFiltered =
+      (compareMode === "org")
+        ? baseRowsRaw.filter(r => r.teamId !== teamId)
+        : baseRowsRaw;
+
+    const baseRows = baseRowsFiltered.map(r => ({ ...r, __cohort: "baseline" }));
+
+    if (tableView === "team") return teamRows;
+    if (tableView === "baseline") return baseRows;
+    return [...teamRows, ...baseRows]; // "both"
+  }, [filtered, baselineList, tableView, compareMode, teamId]);
+
+  // sort + page
   const sorted = useMemo(() => {
-    const copy = [...filtered];
-    copy.sort((a,b)=>{
+    const copy = [...tableRows];
+    copy.sort((a, b) => {
       const dir = sort.dir === "asc" ? 1 : -1;
       const A = a[sort.by], B = b[sort.by];
-      if (sort.by === "completedAt") return (new Date(A) - new Date(B))*dir;
+      if (sort.by === "completedAt") return (new Date(A) - new Date(B)) * dir;
       if (typeof A === "string") return A.localeCompare(B) * dir;
       return (A - B) * dir;
     });
     return copy;
-  }, [filtered, sort]);
+  }, [tableRows, sort]);
 
   const totalPages = Math.max(1, Math.ceil(sorted.length / pageSize));
   const pageRows = useMemo(() => {
@@ -112,19 +211,10 @@ export default function ViewResults() {
     return sorted.slice(start, start + pageSize);
   }, [sorted, page]);
 
-  useEffect(()=>{ setPage(1); }, [scenario, q, verdict, from, to]);
-
-  // metrics
-  const metrics = useMemo(()=>{
-    const n = filtered.length || 1;
-    const avgPct = Math.round(filtered.reduce((s,r)=>s+r.pct,0) / n);
-    const passRate = Math.round(filtered.filter(r=>r.status==="pass").length / n * 100);
-    const runs = filtered.length;
-    return { avgPct, passRate, runs };
-  }, [filtered]);
+  useEffect(() => { setPage(1); }, [scenario, q, verdict, from, to, teamId, tableView, compareMode, compareTeamId]);
 
   const setSortBy = (by) => {
-    setSort(s => s.by === by ? { by, dir: s.dir === "asc" ? "desc":"asc" } : { by, dir: "desc" });
+    setSort(s => s.by === by ? { by, dir: s.dir === "asc" ? "desc" : "asc" } : { by, dir: "desc" });
   };
 
   if (loading) {
@@ -141,153 +231,287 @@ export default function ViewResults() {
               </span>
               <span className="brand-name">AdminPro</span>
             </div>
-            <button className="btn-outlined" onClick={()=>navigate("/admin")}>← Back to dashboard</button>
+            <button className="btn-outlined" onClick={() => navigate("/admin")}>← Back to dashboard</button>
           </div>
         </div>
         <div className="container vr-wrap">
           <h1 className="page-title">View Results</h1>
           <p className="page-subtitle">Review submissions, filter, and drill into details.</p>
-          <div className="skeleton-panel"/>
+          <div className="skeleton-panel" />
         </div>
       </div>
     );
   }
 
+  const teamName = teamId ? (TEAMS.find(t => t.id === teamId)?.name || "Team") : "";
+  const rightTitle =
+    compareMode === "org"
+      ? "Org"
+      : (TEAMS.find(t => t.id === compareTeamId)?.name || "Team");
+
   return (
-    <div className="admin-root">
-      {/* Topbar */}
-      <div className="admin-topbar">
-        <div className="admin-topbar-inner">
-          <div className="brand">
-            <span className="brand-icon" aria-hidden>
-              <svg viewBox="0 0 24 24" fill="none">
-                <rect x="3" y="3" width="18" height="18" rx="4" fill="#6b61ff" opacity="0.15" />
-                <rect x="7" y="7" width="10" height="10" rx="2" stroke="#6b61ff" strokeWidth="1.5" />
-              </svg>
-            </span>
-            <span className="brand-name">AdminPro</span>
-          </div>
-          <button className="btn-outlined" onClick={()=>navigate("/admin")}>← Back to dashboard</button>
-        </div>
-      </div>
-
-      <div className="container vr-wrap">
-        <h1 className="page-title">View Results</h1>
-        <p className="page-subtitle">Review submissions, filter, and drill into details.</p>
-
-        {/* Metrics */}
-        <div className="metric-grid">
-          <div className="metric">
-            <div className="m-label">Average</div>
-            <div className="m-value">{metrics.avgPct}%</div>
-          </div>
-          <div className="metric">
-            <div className="m-label">Pass rate</div>
-            <div className="m-value">{metrics.passRate}%</div>
-          </div>
-          <div className="metric">
-            <div className="m-label">Completed runs</div>
-            <div className="m-value">{metrics.runs}</div>
-          </div>
-        </div>
-
-        {/* Filters */}
-        <div className="filters panel">
-          <select className="input" value={scenario} onChange={e=>setScenario(e.target.value)}>
-            <option value="all">All scenarios</option>
-            {SCENARIOS.map(s => <option key={s.id} value={s.id}>{s.title}</option>)}
-          </select>
-
-          <input
-            className="input"
-            placeholder="Search user or scenario…"
-            value={q}
-            onChange={e=>setQ(e.target.value)}
-          />
-
-          <select className="input" value={verdict} onChange={e=>setVerdict(e.target.value)}>
-            <option value="all">All verdicts</option>
-            <option value="pass">Pass (≥70%)</option>
-            <option value="fail">Fail (&lt;70%)</option>
-          </select>
-
-          <input className="input" type="date" value={from} onChange={e=>setFrom(e.target.value)} />
-          <input className="input" type="date" value={to}   onChange={e=>setTo(e.target.value)} />
-        </div>
-
-        {/* Table */}
-        <div className="panel table-wrap">
-          <div className="table">
-            <div className="t-head sticky">
-              <div className="t-row">
-                <div className="c user" onClick={()=>setSortBy("userEmail")}>User {sort.by==="userEmail" ? arrow(sort.dir):null}</div>
-                <div className="c scen" onClick={()=>setSortBy("scenarioTitle")}>Scenario {sort.by==="scenarioTitle" ? arrow(sort.dir):null}</div>
-                <div className="c score" onClick={()=>setSortBy("pct")}>Score {sort.by==="pct" ? arrow(sort.dir):null}</div>
-                <div className="c verdict" onClick={()=>setSortBy("status")}>Verdict {sort.by==="status" ? arrow(sort.dir):null}</div>
-                <div className="c date" onClick={()=>setSortBy("completedAt")}>Date {sort.by==="completedAt" ? arrow(sort.dir):null}</div>
-                <div className="c act">Action</div>
-              </div>
+    <>
+      <div className="admin-root">
+        {/* Topbar */}
+        <div className="admin-topbar">
+          <div className="admin-topbar-inner">
+            <div className="brand">
+              <span className="brand-icon" aria-hidden>
+                <svg viewBox="0 0 24 24" fill="none">
+                  <rect x="3" y="3" width="18" height="18" rx="4" fill="#6b61ff" opacity="0.15" />
+                  <rect x="7" y="7" width="10" height="10" rx="2" stroke="#6b61ff" strokeWidth="1.5" />
+                </svg>
+              </span>
+              <span className="brand-name">AdminPro</span>
             </div>
+            <button className="btn-outlined" onClick={() => navigate("/admin")}>← Back to dashboard</button>
+          </div>
+        </div>
 
-            {pageRows.length === 0 ? (
-              <div className="empty">No results match your filters.</div>
-            ) : (
-              <div className="t-body">
-                {pageRows.map(r => (
-                  <div className="t-row" key={r.id}>
-                    <div className="c user">
-                      <span className="avatar">{r.userEmail[0].toUpperCase()}</span>
-                      <div className="u">
-                        <b>{r.userEmail}</b>
-                        <small className="muted">{r.id}</small>
+        <div className="container vr-wrap">
+          <h1 className="page-title">View Results</h1>
+          <p className="page-subtitle">
+            Review submissions, filter, and drill into details.
+            {teamId && (
+              <span className="muted" style={{ marginLeft: 10 }}>
+                Viewing <b>{teamName}</b>
+                {" • "}
+                {compareMode === "org"
+                  ? "vs Org"
+                  : (compareTeamId
+                      ? `vs ${TEAMS.find(t => t.id === compareTeamId)?.name || "Team"}`
+                      : "(select a team to compare)")}
+              </span>
+            )}
+          </p>
+
+          {/* Metrics */}
+          <div className="metric-grid">
+            <div className="metric">
+              <div className="m-label">Average</div>
+              <div className="m-value">{metrics.avgPct}%</div>
+              {deltas && <Delta label="vs baseline" value={deltas.avgPct} unit="pp" />}
+            </div>
+            <div className="metric">
+              <div className="m-label">Pass rate</div>
+              <div className="m-value">{metrics.passRate}%</div>
+              {deltas && <Delta label="vs baseline" value={deltas.passRate} unit="pp" />}
+            </div>
+            <div className="metric">
+              <div className="m-label">Completed runs</div>
+              <div className="m-value">{metrics.runs}</div>
+              {deltas && <Delta label="vs baseline" value={deltas.runs} />}
+            </div>
+          </div>
+
+          {/* Compare panel */}
+          {teamId && deltas && (
+            <ComparePanel
+              leftTitle={teamName}
+              left={metrics}
+              rightTitle={rightTitle}
+              right={baseline}
+              showTeamGrid={compareMode === "team" && !compareTeamId}
+              teams={TEAMS.filter(t => t.id !== teamId)}
+              onPickTeam={setCompareTeamId}
+            />
+          )}
+
+          {/* Filters */}
+          <div className="filters panel">
+            {/* Existing filter row */}
+            <select className="input" value={scenario} onChange={e => setScenario(e.target.value)}>
+              <option value="all">All scenarios</option>
+              {SCENARIOS.map(s => <option key={s.id} value={s.id}>{s.title}</option>)}
+            </select>
+
+            <input
+              className="input"
+              placeholder="Search user or scenario…"
+              value={q}
+              onChange={e => setQ(e.target.value)}
+            />
+
+            <select className="input" value={verdict} onChange={e => setVerdict(e.target.value)}>
+              <option value="all">All verdicts</option>
+              <option value="pass">Pass (≥70%)</option>
+              <option value="fail">Fail (&lt;70%)</option>
+            </select>
+
+            <input className="input" type="date" value={from} onChange={e => setFrom(e.target.value)} />
+            <input className="input" type="date" value={to}   onChange={e => setTo(e.target.value)} />
+
+            {/* Second row: Team + Compare controls */}
+            <div className="inline">
+              <select
+                className="input sm"
+                value={teamId}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setTeamId(v);
+                  if (!v) {
+                    setCompareTeamId("");
+                    setTableView("team");
+                  }
+                }}
+                title="Filter by team"
+              >
+                <option value="">All teams</option>
+                {TEAMS.map(t => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </select>
+
+              <button
+                type="button"
+                className="btn-ghost"
+                disabled={!teamId}
+                onClick={() => {
+                  setCompareMode(m => (m === "org" ? "team" : "org"));
+                  setTableView("both");
+                }}
+                title={teamId ? "Toggle compare mode" : "Select a team to compare"}
+              >
+                {compareMode === "org" ? "Team vs Org" : "Team vs Team"}
+              </button>
+
+              {compareMode === "team" && !!teamId && (
+                <select
+                  className="input sm"
+                  value={compareTeamId}
+                  onChange={(e) => {
+                    setCompareTeamId(e.target.value);
+                    setTableView("both");
+                  }}
+                  title="Compare against…"
+                >
+                  <option value="" disabled>Select team to compare</option>
+                  {TEAMS
+                    .filter(t => t.id !== teamId)
+                    .map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                </select>
+              )}
+
+              {/* Which rows to show in the table (ACTIVE state added) */}
+              {teamId && (
+                <div style={{ display:"flex", gap:8 }}>
+                  <button
+                    type="button"
+                    className={`btn-ghost ${tableView === "team" ? "is-active" : ""}`}
+                    aria-pressed={tableView === "team"}
+                    onClick={() => setTableView("team")}
+                    title="Show only selected team"
+                  >
+                    Team only
+                  </button>
+
+                  <button
+                    type="button"
+                    className={`btn-ghost ${tableView === "baseline" ? "is-active" : ""}`}
+                    aria-pressed={tableView === "baseline"}
+                    disabled={(compareMode === "team" && !compareTeamId)}
+                    onClick={() => setTableView("baseline")}
+                    title="Show only baseline"
+                  >
+                    {compareMode === "org" ? "Org only" : "Other team only"}
+                  </button>
+
+                  <button
+                    type="button"
+                    className={`btn-ghost ${tableView === "both" ? "is-active" : ""}`}
+                    aria-pressed={tableView === "both"}
+                    disabled={(compareMode === "team" && !compareTeamId)}
+                    onClick={() => setTableView("both")}
+                    title="Show both cohorts"
+                  >
+                    Both
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Table */}
+          <div className="panel table-wrap">
+            <div className="table">
+              <div className="t-head sticky">
+                <div className="t-row">
+                  <div className="c user"   onClick={() => setSortBy("userEmail")}>User {sort.by==="userEmail" ? arrow(sort.dir) : null}</div>
+                  <div className="c scen"   onClick={() => setSortBy("scenarioTitle")}>Scenario {sort.by==="scenarioTitle" ? arrow(sort.dir) : null}</div>
+                  <div className="c score"  onClick={() => setSortBy("pct")}>Score {sort.by==="pct" ? arrow(sort.dir) : null}</div>
+                  <div className="c verdict"onClick={() => setSortBy("status")}>Verdict {sort.by==="status" ? arrow(sort.dir) : null}</div>
+                  <div className="c date"   onClick={() => setSortBy("completedAt")}>Date {sort.by==="completedAt" ? arrow(sort.dir) : null}</div>
+                  <div className="c act">Action</div>
+                </div>
+              </div>
+
+              {pageRows.length === 0 ? (
+                <div className="empty">No results match your filters.</div>
+              ) : (
+                <div className="t-body">
+                  {pageRows.map(r => (
+                    <div className="t-row" key={r.id + "-" + r.__cohort}>
+                      <div className="c user">
+                        <span className="avatar">{r.userEmail[0].toUpperCase()}</span>
+                        <div className="u">
+                          <b>{r.userEmail}</b>
+                          <small className="muted">{r.id}</small>
+                          <small className="muted">Team: {r.teamName}</small>
+                          {/* cohort tag with leading space to avoid jammed text */}
+                          {teamId && (
+                            <small className="muted">
+                              {" "}{r.__cohort === "team" ? "Selected team" : rightTitle}
+                            </small>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="c scen">
+                        <div><b>{r.scenarioTitle}</b></div>
+                        <small className="muted">Max {r.maxScore} pts</small>
+                      </div>
+
+                      <div className="c score">
+                        <div className="bar"><span style={{ width: `${Math.max(0, Math.min(100, r.pct))}%` }} /></div>
+                        <b>{r.score}/{r.maxScore}</b>
+                        <small>{r.pct}%</small>
+                      </div>
+
+                      <div className="c verdict">
+                        <span className={`pill ${r.status}`}>{r.status === "pass" ? "Pass" : "Fail"}</span>
+                      </div>
+
+                      <div className="c date">
+                        {new Date(r.completedAt).toLocaleDateString()}<br />
+                        <small className="muted">{fmtDuration(r.durationSec)}</small>
+                      </div>
+
+                      <div className="c act">
+                        <button className="btn-ghost" onClick={() => setOpen(r)}>View</button>
                       </div>
                     </div>
+                  ))}
+                </div>
+              )}
+            </div>
 
-                    <div className="c scen">
-                      <div><b>{r.scenarioTitle}</b></div>
-                      <small className="muted">Max {r.maxScore} pts</small>
-                    </div>
-
-                    <div className="c score">
-                      <div className="bar"><span style={{width:`${r.pct}%`}}/></div>
-                      <b>{r.score}/{r.maxScore}</b>
-                      <small>{r.pct}%</small>
-                    </div>
-
-                    <div className="c verdict">
-                      <span className={`pill ${r.status}`}>{r.status === "pass" ? "Pass" : "Fail"}</span>
-                    </div>
-
-                    <div className="c date">
-                      {new Date(r.completedAt).toLocaleDateString()}<br/>
-                      <small className="muted">{fmtDuration(r.durationSec)}</small>
-                    </div>
-
-                    <div className="c act">
-                      <button className="btn-ghost" onClick={()=>setOpen(r)}>View</button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Pagination */}
-          <div className="pager">
-            <button className="btn-ghost" disabled={page<=1} onClick={()=>setPage(p=>p-1)}>Prev</button>
-            <div className="muted">Page {page} / {totalPages}</div>
-            <button className="btn-ghost" disabled={page>=totalPages} onClick={()=>setPage(p=>p+1)}>Next</button>
+            {/* Pagination */}
+            <div className="pager">
+              <button className="btn-ghost" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>Prev</button>
+              <div className="muted">Page {page} / {totalPages}</div>
+              <button className="btn-ghost" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>Next</button>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Drawer */}
+      {/* Drawer (sibling overlay) */}
       {open && (
         <div className="drawer" role="dialog" aria-modal="true">
           <div className="drawer-panel">
             <div className="drawer-head">
               <b>Result details</b>
-              <button className="btn-ghost" onClick={()=>setOpen(null)}>Close</button>
+              <button className="btn-ghost" onClick={() => setOpen(null)}>Close</button>
             </div>
 
             <div className="drawer-meta">
@@ -326,20 +550,83 @@ export default function ViewResults() {
             </div>
 
             <div className="drawer-actions">
-              <button className="btn-outlined" onClick={()=>setOpen(null)}>Close</button>
+              <button className="btn-outlined" onClick={() => setOpen(null)}>Close</button>
             </div>
           </div>
-          <div className="drawer-backdrop" onClick={()=>setOpen(null)}/>
+          <div className="drawer-backdrop" onClick={() => setOpen(null)} />
         </div>
       )}
+    </>
+  );
+}
+
+/* ── helpers ───────────────────────────────────────────────────────────── */
+
+function arrow(dir){ return <span className={`arr ${dir}`} />; }
+
+function fmtDuration(sec){
+  const m = Math.floor(sec / 60), s = sec % 60;
+  return `${m}m ${s.toString().padStart(2,"0")}s`;
+}
+
+function labelFor(v){
+  return v === "correct" ? "Correct" : v === "partial" ? "Partial" : "Incorrect";
+}
+
+// tiny KPI delta chip
+function Delta({ value, unit = "", label }) {
+  const sign = value > 0 ? "+" : value < 0 ? "−" : "";
+  const abs = Math.abs(value);
+  const tone = value > 0 ? "ok" : value < 0 ? "err" : "muted";
+  return (
+    <div className={`delta ${tone}`} title={label} style={{ marginTop: 6 }}>
+      {sign}{abs}{unit}
     </div>
   );
 }
 
-/* helpers */
-function arrow(dir){ return <span className={`arr ${dir}`}/>; }
-function fmtDuration(sec){
-  const m = Math.floor(sec/60), s = sec%60;
-  return `${m}m ${s.toString().padStart(2,"0")}s`;
+/* Compare panel component */
+function ComparePanel({ leftTitle, left, rightTitle, right, showTeamGrid, teams, onPickTeam }) {
+  const bar = (pct) => (
+    <div className="bar" aria-hidden><span style={{ width: `${Math.max(0, Math.min(100, pct))}%` }} /></div>
+  );
+
+  return (
+    <div className="kpi-compare">
+      <div className="side">
+        <div className="title">{leftTitle}</div>
+        <div className="row"><span>Average</span><b>{left.avgPct}%</b></div>
+        {bar(left.avgPct)}
+        <div className="row" style={{ marginTop: 8 }}><span>Pass rate</span><b>{left.passRate}%</b></div>
+        {bar(left.passRate)}
+        <div className="row" style={{ marginTop: 8 }}><span>Completed runs</span><b>{left.runs}</b></div>
+      </div>
+
+      <div className="side">
+        <div className="title">{rightTitle}</div>
+        <div className="row"><span>Average</span><b>{right.avgPct}%</b></div>
+        {bar(right.avgPct)}
+        <div className="row" style={{ marginTop: 8 }}><span>Pass rate</span><b>{right.passRate}%</b></div>
+        {bar(right.passRate)}
+        <div className="row" style={{ marginTop: 8 }}><span>Completed runs</span><b>{right.runs}</b></div>
+
+        {showTeamGrid && teams?.length > 0 && (
+          <div className="team-list">
+            {teams.map(t => (
+              <button
+                key={t.id}
+                className="team-tile"
+                type="button"
+                onClick={() => onPickTeam?.(t.id)}
+                title={`Compare with ${t.name}`}
+              >
+                <div className="k">Compare with</div>
+                <div><b>{t.name}</b></div>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
-function labelFor(v){ return v==="correct" ? "Correct" : v==="partial" ? "Partial" : "Incorrect"; }
