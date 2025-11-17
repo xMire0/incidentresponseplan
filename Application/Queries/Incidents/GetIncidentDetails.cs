@@ -25,6 +25,12 @@ public class GetIncidentDetails
             // Query Incident + Scenario + Responses (with their Question & Role)
             return await context.Incidents
                 .Include(i => i.Scenario)                    // load Scenario
+                    .ThenInclude(s => s.Questions)
+                        .ThenInclude(q => q.AnswerOptions)
+                .Include(i => i.Scenario)
+                    .ThenInclude(s => s.Questions)
+                        .ThenInclude(q => q.QuestionRoles)
+                            .ThenInclude(qr => qr.Role)
                 .Include(i => i.Responses)
                     .ThenInclude(r => r.Question)
                         .ThenInclude(q => q.AnswerOptions)

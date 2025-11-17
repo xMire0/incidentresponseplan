@@ -18,6 +18,58 @@
   min-height: 100vh;
 }
 
+/* --- Topbar --- */
+.admin-topbar {
+  background: var(--surface);
+  border-bottom: 1px solid var(--edge);
+}
+
+.admin-topbar-inner {
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 20px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.brand-icon {
+  width: 28px;
+  height: 28px;
+  display: inline-grid;
+  place-items: center;
+}
+
+.brand-name {
+  font-weight: 700;
+}
+
+/* --- Buttons --- */
+.btn-outlined {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--edge);
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: 0.15s;
+}
+.btn-outlined:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* --- Page --- */
 .results-wrap {
   padding: 28px 0 48px;
 }
@@ -33,6 +85,7 @@
   margin: 0 0 18px;
 }
 
+/* --- Panels --- */
 .panel {
   background: var(--surface);
   border: 1px solid var(--edge);
@@ -49,12 +102,14 @@
   margin-bottom: 10px;
 }
 
+/* --- Summary stats --- */
 .summary-stats {
   display: grid;
   gap: 6px;
   font-size: 15px;
 }
 
+/* --- Pills --- */
 .pill {
   padding: 4px 10px;
   border-radius: 999px;
@@ -62,25 +117,23 @@
   border: 1px solid var(--edge);
   background: rgba(255, 255, 255, 0.05);
 }
-
 .pill.green {
   background: rgba(22, 199, 132, 0.18);
   border-color: rgba(22, 199, 132, 0.5);
   color: #d7ffe9;
 }
-
 .pill.amber {
   background: rgba(245, 158, 11, 0.18);
   border-color: rgba(245, 158, 11, 0.5);
   color: #fff4db;
 }
-
 .pill.red {
   background: rgba(239, 68, 68, 0.18);
   border-color: rgba(239, 68, 68, 0.5);
   color: #ffe0e0;
 }
 
+/* --- Participants --- */
 .participant-card {
   background: var(--surface-2);
   border: 1px solid var(--edge);
@@ -96,13 +149,13 @@
   margin-bottom: 10px;
 }
 
+/* --- Collapsible answers --- */
 .answers-list {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-/* Collapsible structure */
 details.answer-row {
   cursor: pointer;
   border: 1px solid var(--edge);
@@ -110,7 +163,6 @@ details.answer-row {
   background: rgba(255, 255, 255, 0.03);
   transition: all 0.15s ease;
 }
-
 details[open] {
   background: rgba(255, 255, 255, 0.06);
   border-color: rgba(255, 255, 255, 0.2);
@@ -138,6 +190,7 @@ details[open] {
   color: var(--red);
 }
 
+/* --- Loading skeleton --- */
 .skeleton-panel {
   height: 260px;
   background: linear-gradient(
@@ -159,33 +212,10 @@ details[open] {
   100% {
     background-position: -200% 0;
   }
-
 }
 
 .right-buttons {
   display: flex;
   align-items: center;
   gap: 10px;
-}
-
-.btn-secondary {
-  background: linear-gradient(90deg, #6b61ff, #8f85ff);
-  border: none;
-  color: #fff;
-  padding: 8px 16px;
-  border-radius: 10px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: 0.2s ease;
-  box-shadow: 0 0 10px rgba(107, 97, 255, 0.4);
-}
-
-.btn-secondary:hover {
-  box-shadow: 0 0 18px rgba(107, 97, 255, 0.7);
-  transform: translateY(-1px);
-}
-
-.btn-secondary:active {
-  transform: translateY(1px);
-  opacity: 0.9;
 }

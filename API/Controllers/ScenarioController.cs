@@ -42,9 +42,10 @@ public class ScenariosController : BaseApiController
 
     [HttpPost]
 
-    public async Task<ActionResult<string>> CreateScenario(Scenario scenario)
+    public async Task<ActionResult<string>> CreateScenario([FromBody] CreateScenario.Command command)
     {
-        return await Mediator.Send(new CreateScenario.Command { Scenario = scenario });
+        var scenarioId = await Mediator.Send(command);
+        return Ok(scenarioId);
 
     }
 

@@ -1,11 +1,34 @@
 /* src/pages/ViewSpecificScenario.css */
 @import "./CreateScenario.css";
 
-/* Tilføj evt. overrides her hvis du vil ændre lidt fra CreateScenario */
-.page-title { margin-bottom: 6px; }
-.page-subtitle { color: var(--muted); margin-bottom: 20px; }
+/* --- Custom styling for scenario view --- */
 
-.flash.ok {
-  background: rgba(22,199,132,.12);
-  border: 1px solid rgba(22,199,132,.45);
+.q-card {
+  margin-top: 20px;         /* ekstra luft over Q1, Q2, Q3 */
+  margin-bottom: 20px;
+  padding: 16px;
+  border-radius: 14px;
+  background: var(--surface-2);
+  border: 1px solid var(--edge);
+}
+
+.q-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.q-header b {
+  font-size: 15px;
+}
+
+.q-card ul {
+  margin-top: 10px;
+  margin-bottom: 4px;
+  padding-left: 20px;
+}
+
+.q-card .muted.tiny {
+  margin-top: 6px;
 }
