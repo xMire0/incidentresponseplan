@@ -23,6 +23,13 @@ const STATUS_CLASSES = {
   Unknown: "muted",
 };
 
+const answerTextFallback = (chosenOptions = []) => {
+  if (chosenOptions.length) {
+    return chosenOptions.map((opt) => opt.text).join(", ");
+  }
+  return "No answer";
+};
+
 const toSentenceCase = (value) =>
   value
     .replace(/([A-Z])/g, " $1")
@@ -63,8 +70,12 @@ const normaliseIncident = (raw) => {
 
   responses.forEach((resp) => {
     const question = resp.question ?? resp.Question ?? {};
-    const questionId = question.id ?? question.Id ?? `question-${fallbackCounter++}`;
-    if (!questionMaxLookup.has(questionId)) {
+    const questionId =
+      question.id ??
+      question.Id ??
+      `question-${fallbackCounter++}`;
+    const questionKey = typeof questionId === "string" ? questionId : String(questionId);
+    if (!questionMaxLookup.has(questionKey)) {
       const answerOptions = Array.isArray(question.answerOptions ?? question.AnswerOptions)
         ? question.answerOptions ?? question.AnswerOptions
         : [];
@@ -72,7 +83,7 @@ const normaliseIncident = (raw) => {
         (max, option) => Math.max(max, Number(option?.weight ?? option?.Weight ?? 0)),
         0
       );
-      questionMaxLookup.set(questionId, maxWeight);
+      questionMaxLookup.set(questionKey, maxWeight);
     }
 
     const answerOption = resp.answerOption ?? resp.AnswerOption ?? null;
@@ -110,7 +121,7 @@ const normaliseIncident = (raw) => {
           role?.Name ??
           "Participant",
         role: role?.name ?? role?.Name ?? null,
-        answers: [],
+        answersMap: new Map(),
         totalScore: 0,
         maxScore: 0,
         _questionIds: new Set(),
@@ -118,26 +129,109 @@ const normaliseIncident = (raw) => {
     }
 
     const participant = participantsMap.get(participantKey);
-    participant.answers.push({
-      question: questionText,
-      selected: answerText,
-      correct: isCorrect,
-      points,
-      answeredAt: resp.answeredAt ?? resp.AnsweredAt ?? null,
-    });
+    const answersMap = participant.answersMap;
+
+    let answerEntry = answersMap.get(questionKey);
+    if (!answerEntry) {
+      const baseOptions = Array.isArray(question.answerOptions ?? question.AnswerOptions)
+        ? (question.answerOptions ?? question.AnswerOptions).map((option, idx) => ({
+            optionId: String(option?.id ?? option?.Id ?? `option-${fallbackCounter++}-${idx}`),
+            text: option?.text ?? option?.Text ?? `Option ${idx + 1}`,
+            isCorrect: Boolean(option?.isCorrect ?? option?.IsCorrect),
+            isChosen: false,
+            points: Number(option?.weight ?? option?.Weight ?? 0),
+          }))
+        : [];
+
+      answerEntry = {
+        questionId: questionKey,
+        question: questionText,
+        options: baseOptions,
+        points: 0,
+      };
+
+      answersMap.set(questionKey, answerEntry);
+    }
+
+    const answerOptionId =
+      answerOption?.id ??
+      answerOption?.Id ??
+      resp.answerOptionId ??
+      resp.AnswerOptionId ??
+      null;
+    const normalizedAnswerOptionId = answerOptionId ? String(answerOptionId) : null;
+
+    let optionRecord = normalizedAnswerOptionId
+      ? answerEntry.options.find((opt) => opt.optionId === normalizedAnswerOptionId)
+      : null;
+
+    if (!optionRecord) {
+      optionRecord = {
+        optionId:
+          normalizedAnswerOptionId ??
+          `adhoc-${participantKey}-${questionKey}-${fallbackCounter++}`,
+        text: answerText,
+        isCorrect,
+        isChosen: false,
+        points,
+      };
+      answerEntry.options.push(optionRecord);
+    } else if (!optionRecord.text) {
+      optionRecord.text = answerText;
+    }
+
+    optionRecord.isChosen = true;
+
+    answerEntry.points += points;
     participant.totalScore += points;
 
-    if (!participant._questionIds.has(questionId)) {
-      participant.maxScore += questionMaxLookup.get(questionId) ?? points;
-      participant._questionIds.add(questionId);
+    if (!participant._questionIds.has(questionKey)) {
+      participant.maxScore += questionMaxLookup.get(questionKey) ?? points;
+      participant._questionIds.add(questionKey);
     }
   });
 
-  const participants = Array.from(participantsMap.values()).map((participant) => ({
-    ...participant,
-    maxScore: participant.maxScore || participant.totalScore,
-    answers: participant.answers,
-  }));
+  const participants = Array.from(participantsMap.values()).map((participant) => {
+    const answers = Array.from(participant.answersMap.values()).map((entry) => {
+      const chosenOptions = entry.options.filter((opt) => opt.isChosen);
+      const correctOptions = entry.options.filter((opt) => opt.isCorrect);
+      const pickedCorrect = chosenOptions.filter((opt) => opt.isCorrect).length;
+      const pickedIncorrect = chosenOptions.some((opt) => !opt.isCorrect);
+
+      const verdict =
+        correctOptions.length === 0
+          ? entry.points > 0
+            ? "partial"
+            : "incorrect"
+          : pickedCorrect === correctOptions.length && !pickedIncorrect
+            ? "correct"
+            : pickedCorrect > 0
+              ? "partial"
+              : "incorrect";
+
+      const chosenSummary = chosenOptions.length
+        ? chosenOptions.map((opt) => opt.text).join(", ")
+        : answerTextFallback(chosenOptions);
+
+      return {
+        questionId: entry.questionId,
+        question: entry.question,
+        points: entry.points,
+        max: questionMaxLookup.get(entry.questionId) ?? entry.points,
+        verdict,
+        chosenSummary,
+        options: entry.options,
+      };
+    });
+
+    delete participant.answersMap;
+
+    return {
+      ...participant,
+      maxScore: participant.maxScore || participant.totalScore,
+      answers,
+    };
+  });
 
   participants.forEach((participant) => delete participant._questionIds);
   participants.sort((a, b) => a.name.localeCompare(b.name));
@@ -169,6 +263,12 @@ const normaliseIncident = (raw) => {
 };
 
 const formatDateTime = (value) => (value ? new Date(value).toLocaleString("en-GB") : "—");
+const verdictLabel = (verdict) => {
+  if (verdict === "correct") return "Correct";
+  if (verdict === "partial") return "Partial";
+  if (verdict === "incorrect") return "Incorrect";
+  return "—";
+};
 
 export default function ViewSpecificIncident() {
   const { id } = useParams();
@@ -176,6 +276,7 @@ export default function ViewSpecificIncident() {
   const [loading, setLoading] = useState(true);
   const [incident, setIncident] = useState(null);
   const [error, setError] = useState(null);
+  const [expandedAnswerKey, setExpandedAnswerKey] = useState(null);
 
   useEffect(() => {
     if (!id) return;
@@ -321,27 +422,79 @@ export default function ViewSpecificIncident() {
                 </div>
 
                 <div className="answers-list">
-                  {participant.answers.map((answer, index) => (
-                    <details
-                      key={index}
-                      className={`answer-row ${answer.correct ? "correct" : "incorrect"}`}
-                    >
-                      <summary className="q-summary">
-                        Q{index + 1}: {answer.question}
-                      </summary>
-                      <div className="q-body">
-                        <div>
-                          <b>Answer:</b> {answer.selected}
-                        </div>
-                        <div>
-                          <b>Points:</b> {answer.points}
-                        </div>
-                        <div className={`verdict ${answer.correct ? "ok" : "bad"}`}>
-                          {answer.correct ? "✓ Correct" : "✗ Incorrect"}
-                        </div>
+                  {participant.answers.map((answer, index) => {
+                    const questionId = answer.questionId ?? `${participant.id}-${index}`;
+                    const answerKey = `${participant.id}:${questionId}`;
+                    const isOpen = expandedAnswerKey === answerKey;
+
+                    return (
+                      <div
+                        key={answerKey}
+                        className={`answer-block ${isOpen ? "is-open" : ""}`}
+                      >
+                        <button
+                          type="button"
+                          className="answer-toggle"
+                          onClick={() =>
+                            setExpandedAnswerKey((prev) => (prev === answerKey ? null : answerKey))
+                          }
+                        >
+                          <div className="answer-info">
+                            <small className="muted">Question {index + 1}</small>
+                            <div className="answer-question">{answer.question}</div>
+                            <div className="answer-meta">
+                              <span>
+                                Chosen: <b>{answer.chosenSummary ?? "—"}</b>
+                              </span>
+                              <span>
+                                Points:{" "}
+                                <b>
+                                  {answer.points} / {answer.max}
+                                </b>
+                              </span>
+                            </div>
+                          </div>
+                          <div className="answer-right">
+                            <span className={`pill ${answer.verdict}`}>
+                              {verdictLabel(answer.verdict)}
+                            </span>
+                            <span className={`chevron ${isOpen ? "open" : ""}`} aria-hidden />
+                          </div>
+                        </button>
+
+                        {isOpen && (
+                          <div className="answer-options">
+                            {Array.isArray(answer.options) && answer.options.length ? (
+                              answer.options.map((opt) => (
+                                <div
+                                  key={opt.optionId ?? opt.text}
+                                  className={`answer-option ${
+                                    opt.isChosen ? "chosen" : ""
+                                  } ${opt.isCorrect ? "correct" : ""}`}
+                                >
+                                  <div>
+                                    <b>{opt.text || "Option"}</b>
+                                    <small className="muted">
+                                      {opt.isCorrect ? "Correct answer" : "Answer choice"}
+                                    </small>
+                                  </div>
+                                  <div className="answer-option-meta">
+                                    {opt.isChosen && <span className="tag chosen">Chosen</span>}
+                                    {opt.isCorrect && <span className="tag correct">Correct</span>}
+                                    <span className="muted">{opt.points ?? 0} pts</span>
+                                  </div>
+                                </div>
+                              ))
+                            ) : (
+                              <div className="answer-option muted">
+                                No answer options available for this question.
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
-                    </details>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             ))

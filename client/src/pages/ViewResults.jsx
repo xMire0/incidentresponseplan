@@ -57,6 +57,15 @@ export default function ViewResults() {
 
   // drawer
   const [open, setOpen] = useState(null);
+  const [expandedQuestionId, setExpandedQuestionId] = useState(null);
+
+  const toggleQuestion = useCallback((qid) => {
+    setExpandedQuestionId((prev) => (prev === qid ? null : qid));
+  }, []);
+
+  useEffect(() => {
+    setExpandedQuestionId(null);
+  }, [open]);
 
   useEffect(() => {
     let live = true;
@@ -422,7 +431,6 @@ export default function ViewResults() {
                         <span className="avatar">{r.userEmail[0].toUpperCase()}</span>
                         <div className="u">
                           <b>{r.userEmail}</b>
-                          <small className="muted">{r.id}</small>
                           <small className="muted">Team: {teamLabel}</small>
                           {/* cohort tag with leading space to avoid jammed text */}
                           {teamId && (
@@ -475,7 +483,7 @@ export default function ViewResults() {
       {/* Drawer (sibling overlay) */}
       {open && (
         <div className="drawer" role="dialog" aria-modal="true">
-          <div className="drawer-panel">
+          <div className="drawer-panel" onClick={(e) => e.stopPropagation()}>
             <div className="drawer-head">
               <b>Result details</b>
               <button className="btn-ghost" onClick={() => setOpen(null)}>Close</button>
@@ -501,26 +509,84 @@ export default function ViewResults() {
             </div>
 
             <div className="q-list">
-              {(open.detail ?? []).map((q) => (
-                <div className="q" key={q.qid}>
-                  <div className="q-top">
-                    <b>{q.qid}</b>
-                    <span className={`pill ${q.verdict}`}>{labelFor(q.verdict)}</span>
+              {(open.detail ?? []).map((q, idx) => {
+                const qid = String(q.qid || q.questionId || idx);
+                const isOpen = expandedQuestionId === qid;
+                const options = Array.isArray(q.options) ? q.options : [];
+                const chosenSummary = options.filter((opt) => opt.isChosen).map((opt) => opt.text).join(", ") || q.chosen;
+                return (
+                  <div className={`q ${isOpen ? "is-open" : ""}`} key={qid}>
+                    <button
+                      type="button"
+                      className="q-toggle"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleQuestion(qid);
+                      }}
+                    >
+                      <div className="q-info">
+                        <small className="muted">Question {idx + 1}</small>
+                        <div className="q-text">{q.text}</div>
+                        <div className="q-meta">
+                          <span>Chosen: <b>{chosenSummary || "—"}</b></span>
+                          <span>Points: <b>{q.points}</b> / {q.max}</span>
+                        </div>
+                      </div>
+                      <div className="q-right">
+                        <span className={`pill ${q.verdict}`}>{labelFor(q.verdict)}</span>
+                        <span className={`chevron ${isOpen ? "open" : ""}`} aria-hidden />
+                      </div>
+                    </button>
+
+                    {isOpen && (
+                      <div className="q-options">
+                        {options.length === 0 ? (
+                          <div className="q-option muted">No answer options available.</div>
+                        ) : (
+                          options.map((opt) => {
+                            const optionKey = opt.optionId || opt.id || opt.text;
+                            const classes = [
+                              "q-option",
+                              opt.isChosen ? "chosen" : "",
+                              opt.isCorrect ? "correct" : "",
+                            ].filter(Boolean).join(" ");
+
+                            return (
+                              <div className={classes} key={optionKey}>
+                                <div>
+                                  <b>{opt.text || "Option"}</b>
+                                  <small className="muted">
+                                    {opt.isCorrect ? "Correct answer" : "Answer choice"}
+                                  </small>
+                                </div>
+                                <div className="q-option-meta">
+                                  {opt.isChosen && <span className="tag chosen">Chosen</span>}
+                                  {opt.isCorrect && <span className="tag correct">Correct</span>}
+                                  <span className="muted">{opt.points ?? 0} pts</span>
+                                </div>
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+                    )}
                   </div>
-                  <div className="q-text">{q.text}</div>
-                  <div className="q-meta">
-                    <span>Chosen: <b>{q.chosen}</b></span>
-                    <span>Points: <b>{q.points}</b> / {q.max}</span>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             <div className="drawer-actions">
               <button className="btn-outlined" onClick={() => setOpen(null)}>Close</button>
             </div>
           </div>
-          <div className="drawer-backdrop" onClick={() => setOpen(null)} />
+          <div 
+            className="drawer-backdrop" 
+            onClick={(e) => {
+              if (e.target === e.currentTarget) {
+                setOpen(null);
+              }
+            }}
+          />
         </div>
       )}
     </>

@@ -26,7 +26,7 @@ public class CreateResponsesBulk
         public Guid QuestionId { get; set; }
         public Guid AnswerOptionId { get; set; }
         public string? Answer { get; set; }
-        public Guid RoleId { get; set; }
+        public Guid? RoleId { get; set; }
         public Guid? UserId { get; set; }
         public string? UserEmail { get; set; }
         public DateTime? AnsweredAt { get; set; }
@@ -117,7 +117,7 @@ public class CreateResponsesBulk
                 if (dto.QuestionId == Guid.Empty || dto.AnswerOptionId == Guid.Empty)
                     continue;
 
-                var roleId = await EnsureRoleAsync(dto.RoleId == Guid.Empty ? null : dto.RoleId);
+                var roleId = await EnsureRoleAsync(dto.RoleId);
                 var userId = await EnsureUserAsync(dto.UserId, dto.UserEmail, roleId);
 
                 responses.Add(new Response

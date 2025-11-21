@@ -12,7 +12,8 @@ public class EditIncident
     {
         public Guid Id { get; set; }
         public string? Title { get; set; }
-        public IncidentStatus Status { get; set; }
+        public IncidentStatus? Status { get; set; }
+        public DateTime? StartedAt { get; set; }
         public DateTime? CompletedAt { get; set; }
     }
 
@@ -26,8 +27,20 @@ public class EditIncident
             if (!string.IsNullOrWhiteSpace(request.Title))
                 incident.Title = request.Title;
 
-            incident.Status = request.Status;
-            incident.CompletedAt = request.CompletedAt;
+            if (request.Status.HasValue)
+            {
+                incident.Status = request.Status.Value;
+            }
+
+            if (request.StartedAt.HasValue)
+            {
+                incident.StartedAt = request.StartedAt;
+            }
+
+            if (request.CompletedAt.HasValue)
+            {
+                incident.CompletedAt = request.CompletedAt;
+            }
 
             await context.SaveChangesAsync(cancellationToken);
         }

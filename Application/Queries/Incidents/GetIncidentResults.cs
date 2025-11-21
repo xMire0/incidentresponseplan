@@ -64,34 +64,86 @@ public class GetIncidentResults
                     var detail = new List<QuestionResultDto>();
                     var score = 0;
 
-                    foreach (var response in group)
+                    var responsesByQuestion = group
+                        .GroupBy(r => r.QuestionId)
+                        .ToList();
+
+                    foreach (var questionGroup in responsesByQuestion)
                     {
-                        var questionId = response.QuestionId;
-                        var questionText = response.Question?.Text
-                            ?? scenario?.Questions?.FirstOrDefault(q => q.Id == questionId)?.Text
+                        var questionId = questionGroup.Key;
+                        var scenarioQuestion = scenario?.Questions?.FirstOrDefault(q => q.Id == questionId);
+                        var questionText = questionGroup.First().Question?.Text
+                            ?? scenarioQuestion?.Text
                             ?? "Question";
 
-                        var answerOption = response.AnswerOption;
-                        var points = answerOption?.Weight ?? 0;
-                        var verdict = answerOption?.IsCorrect == true
-                            ? "correct"
-                            : points > 0
-                                ? "partial"
-                                : "incorrect";
+                        var answerOptions = scenarioQuestion?.AnswerOptions ?? new List<AnswerOption>();
+                        var chosenOptionIds = questionGroup
+                            .Select(r => r.AnswerOptionId)
+                            .Where(id => id != Guid.Empty)
+                            .ToHashSet();
+
+                        var points = questionGroup.Sum(r => r.AnswerOption?.Weight ?? 0);
 
                         if (!questionMaxLookup.ContainsKey(questionId))
                         {
                             questionMaxLookup[questionId] = Math.Max(points, 0);
                         }
 
+                        var correctOptionIds = answerOptions
+                            .Where(o => o.IsCorrect)
+                            .Select(o => o.Id)
+                            .ToHashSet();
+
+                        var pickedCorrect = chosenOptionIds.Count(id => correctOptionIds.Contains(id));
+                        var pickedIncorrect = chosenOptionIds.Any(id => !correctOptionIds.Contains(id));
+
+                        var verdict = correctOptionIds.Count == 0
+                            ? (points > 0 ? "partial" : "incorrect")
+                            : pickedCorrect == correctOptionIds.Count && !pickedIncorrect
+                                ? "correct"
+                                : pickedCorrect > 0
+                                    ? "partial"
+                                    : "incorrect";
+
+                        var optionDtos = answerOptions
+                            .Select(o => new OptionResultDto
+                            {
+                                OptionId = o.Id,
+                                Text = o.Text,
+                                IsCorrect = o.IsCorrect,
+                                IsChosen = chosenOptionIds.Contains(o.Id),
+                                Points = o.Weight
+                            })
+                            .ToList();
+
+                        // Include any ad-hoc answers that no longer have a matching option
+                        foreach (var orphan in questionGroup.Where(r => r.AnswerOptionId == Guid.Empty || !optionDtos.Any(o => o.OptionId == r.AnswerOptionId)))
+                        {
+                            optionDtos.Add(new OptionResultDto
+                            {
+                                OptionId = orphan.AnswerOptionId == Guid.Empty ? Guid.NewGuid() : orphan.AnswerOptionId,
+                                Text = orphan.AnswerOption?.Text ?? orphan.Answer ?? "Response",
+                                IsCorrect = orphan.AnswerOption?.IsCorrect ?? false,
+                                IsChosen = true,
+                                Points = orphan.AnswerOption?.Weight ?? 0
+                            });
+                        }
+
+                        var chosenLabel = optionDtos
+                            .Where(o => o.IsChosen)
+                            .Select(o => o.Text)
+                            .DefaultIfEmpty(questionGroup.First().Answer ?? "-")
+                            .ToList();
+
                         detail.Add(new QuestionResultDto
                         {
                             Qid = questionId,
                             Text = questionText,
-                            Chosen = answerOption?.Text ?? response.Answer ?? "-",
+                            Chosen = string.Join(", ", chosenLabel),
                             Verdict = verdict,
                             Points = points,
                             Max = questionMaxLookup[questionId],
+                            Options = optionDtos
                         });
 
                         score += points;
@@ -205,6 +257,16 @@ public class GetIncidentResults
         public string Verdict { get; set; } = string.Empty;
         public int Points { get; set; }
         public int Max { get; set; }
+        public List<OptionResultDto> Options { get; set; } = new();
+    }
+
+    public class OptionResultDto
+    {
+        public Guid OptionId { get; set; }
+        public string Text { get; set; } = string.Empty;
+        public bool IsCorrect { get; set; }
+        public bool IsChosen { get; set; }
+        public int Points { get; set; }
     }
 }
 

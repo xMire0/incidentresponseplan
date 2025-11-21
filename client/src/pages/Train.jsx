@@ -235,6 +235,38 @@ export default function Train(){
     return () => { live = false; };
   },[id, review]);
 
+  useEffect(() => {
+    if (!sc || review) return;
+    if (sc.statusKey !== "NotStarted") return;
+
+    let cancelled = false;
+
+    (async () => {
+      try {
+        await api.put(`/api/incident/${sc.id}`, {
+          status: "InProgress",
+          startedAt: new Date().toISOString(),
+        });
+        if (!cancelled) {
+          setSc((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  statusKey: "InProgress",
+                }
+              : prev
+          );
+        }
+      } catch (err) {
+        console.error("Failed to mark incident in progress", err);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [sc, review]);
+
   const allQs = useMemo(() => sc ? sc.sections.flatMap(s => s.questions) : [], [sc]);
 
   // Max possible score = sum of scores for all "correct" options (supports multi-correct)
@@ -326,18 +358,17 @@ export default function Train(){
             Array.isArray(question.roleIds) && question.roleIds.length > 0
               ? question.roleIds.find((roleId) => GUID_REGEX.test(roleId))
               : defaultRoleId;
-          if (!roleCandidate) return null;
           return {
             incidentId: sc.id,
             questionId: question.id,
             answerOptionId: optionId,
             answer: null,
-            roleId: roleCandidate,
+            roleId: roleCandidate ?? null,
             userId: null,
             userEmail: user?.email ?? null,
             answeredAt: new Date().toISOString(),
           };
-        }).filter(Boolean);
+        });
       }),
     };
 
