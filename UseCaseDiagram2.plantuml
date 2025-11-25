@@ -1,0 +1,34 @@
+@startuml
+
+left to right direction
+skinparam actorStyle awesome
+skinparam usecase {
+  BackgroundColor #1b2030
+  BorderColor #6b61ff
+  ArrowColor #cdd3df
+  FontColor #e9eef5
+}
+skinparam actor {
+  FontColor #e9eef5
+}
+skinparam backgroundColor #0b0f16
+
+' ==== ACTORS ====
+actor "IT Manager" as ITM
+actor "IT Operations\nSpecialist" as ITOPS
+actor "Medarbejder" as USER
+
+' ==== SYSTEM BOUNDARY ====
+rectangle "Incident Response\nTraining Platform" as SYSTEM {
+  
+  usecase "UC-1\nOvervåg træningsresultater" as UC1
+  usecase "UC-2\nOpret nyt scenarie" as UC2
+  usecase "UC-3\nGennemfør scenarie" as UC3
+}
+
+' ==== RELATIONSHIPS ====
+ITM --> UC1
+ITOPS --> UC2
+USER --> UC3
+
+@enduml

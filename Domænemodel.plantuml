@@ -1,0 +1,40 @@
+@startuml
+skinparam classAttributeIconSize 0
+
+class Scenario {
+}
+
+class Incident {
+}
+
+class Question {
+}
+
+class AnswerOption {
+}
+
+class Response {
+}
+
+class Evaluation {
+}
+
+class User {
+}
+
+class Role {
+}
+
+Scenario "1" --> "*" Question : består af
+Scenario "1" --> "*" Incident : genererer
+Incident "1" --> "*" Response : indeholder
+Response "*" --> "1" Question : besvarer
+Question "1" --> "*" AnswerOption : har
+Response "*" --> "1" AnswerOption : valgt svar
+Incident "1" --> "1" Evaluation : opsummerer
+
+User "1" --> "*" Response : foretager
+User "1" --> "*" Role : tildeles
+Question "*" --> "*" Role : målrettet
+
+@enduml
