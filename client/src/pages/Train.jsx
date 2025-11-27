@@ -81,7 +81,7 @@ const normalizeIncidentScenario = (incident, scenario) => {
                 const text = option.text ?? option.Text ?? "";
                 const isCorrect = Boolean(option.isCorrect ?? option.IsCorrect);
                 const weight = Number(option.weight ?? option.Weight ?? 0);
-                const kind = isCorrect ? "correct" : weight > 0 ? "partial" : "incorrect";
+                const kind = isCorrect ? "correct" : "incorrect";
                 const normalizedScore = isCorrect ? Math.max(10, weight || 10) : weight;
                 return {
                   id: optionId,
@@ -163,11 +163,7 @@ const IconCross = () => (
     <path d="M18 6L6 18M6 6l12 12" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"/>
   </svg>
 );
-const IconTilde = () => (
-  <svg viewBox="0 0 24 24" width="18" height="18" className="r-partial" aria-hidden>
-    <path d="M4 12c3-4 5 4 8 0s5 4 8 0" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"/>
-  </svg>
-);
+// IconTilde removed - no longer needed (partial verdict removed)
 
 /* ---------- helpers for multi-select ---------- */
 const getCorrectIds = (q) => q.options.filter(o => o.kind === "correct").map(o => o.id);
@@ -213,10 +209,10 @@ export default function Train(){
         if (review || detail.isCompleted) {
           try {
             const saved = JSON.parse(localStorage.getItem(reviewKey(detail.id)) || "null");
-            if (saved?.answers) {
-              setAnswers(saved.answers);
-              setSubmitted(true);
-            }
+          if (saved?.answers) {
+            setAnswers(saved.answers);
+            setSubmitted(true);
+          }
           } catch {
             // ignore hydration errors
           }
@@ -231,7 +227,7 @@ export default function Train(){
       })
       .finally(() => {
         if (live) setLoading(false);
-      });
+    });
     return () => { live = false; };
   },[id, review]);
 
@@ -466,7 +462,7 @@ export default function Train(){
     );
   }
 
-  // verdict for a question after submit (correct/partial/incorrect/none)
+  // verdict for a question after submit (correct/incorrect/none)
   const verdictFor = (q) => {
     if (!submitted) return null;
     const picks = arr(answers[q.id]);
@@ -476,14 +472,15 @@ export default function Train(){
     const pickedCorrectCount = picks.filter(id => correctIds.has(id)).length;
     const pickedIncorrect    = picks.some(id => !correctIds.has(id));
 
-    if (pickedCorrectCount === correctIds.size && !pickedIncorrect) return "correct";
-    if (pickedCorrectCount > 0) return "partial";
+    // Verdict logik: kun "correct" eller "incorrect" (fjernet "partial")
+    // "correct": alle korrekte svar valgt OG ingen forkerte svar valgt
+    // "incorrect": alt andet
+    if (correctIds.size > 0 && pickedCorrectCount === correctIds.size && !pickedIncorrect) return "correct";
     return "incorrect";
   };
 
   const badgeIcon = (kind) => {
     if (kind === "correct") return <IconCheck/>;
-    if (kind === "partial") return <IconTilde/>;
     if (kind === "incorrect" || kind === "none") return <IconCross/>;
     return null;
   };
@@ -588,7 +585,7 @@ export default function Train(){
                 </div>
 
                 {sec.questions.map((q, idx)=> {
-                  const v = verdictFor(q); // "correct" | "partial" | "incorrect" | "none" | null
+                  const v = verdictFor(q); // "correct" | "incorrect" | "none" | null
                   const cap = selectionLimit(q);
                   const selected = new Set(arr(answers[q.id]));
                   const questionIndex = idx + (si === 0 ? 0 : sc.sections[0].questions.length);
@@ -614,7 +611,6 @@ export default function Train(){
                           // after submit, show truth-state colors
                           const postClass = submitted
                             ? (op.kind === "correct" ? "correct"
-                              : op.kind === "partial" ? "partial"
                               : chosen ? "wrong" : "")
                             : "";
 
@@ -630,7 +626,6 @@ export default function Train(){
                               <span className="radio">
                                 {submitted
                                   ? (op.kind === "correct" ? <IconCheck/> :
-                                     op.kind === "partial" ? <IconTilde/> :
                                      chosen ? <IconCross/> : <IconDot/>)
                                   : <IconDot/>}
                               </span>

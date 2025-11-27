@@ -198,16 +198,15 @@ const normaliseIncident = (raw) => {
       const pickedCorrect = chosenOptions.filter((opt) => opt.isCorrect).length;
       const pickedIncorrect = chosenOptions.some((opt) => !opt.isCorrect);
 
+      // Verdict logik: kun "correct" eller "incorrect" (fjernet "partial")
+      // "correct": alle korrekte svar valgt OG ingen forkerte svar valgt
+      // "incorrect": alt andet
       const verdict =
-        correctOptions.length === 0
-          ? entry.points > 0
-            ? "partial"
-            : "incorrect"
-          : pickedCorrect === correctOptions.length && !pickedIncorrect
-            ? "correct"
-            : pickedCorrect > 0
-              ? "partial"
-              : "incorrect";
+        correctOptions.length > 0 
+          && pickedCorrect === correctOptions.length 
+          && !pickedIncorrect
+          ? "correct"
+          : "incorrect";
 
       const chosenSummary = chosenOptions.length
         ? chosenOptions.map((opt) => opt.text).join(", ")
@@ -265,7 +264,6 @@ const normaliseIncident = (raw) => {
 const formatDateTime = (value) => (value ? new Date(value).toLocaleString("en-GB") : "—");
 const verdictLabel = (verdict) => {
   if (verdict === "correct") return "Correct";
-  if (verdict === "partial") return "Partial";
   if (verdict === "incorrect") return "Incorrect";
   return "—";
 };

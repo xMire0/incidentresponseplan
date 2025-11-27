@@ -25,11 +25,17 @@ public class EditQuestion
         {
             var question = await context.Questions
                 .Include(q => q.QuestionRoles)
+                .Include(q => q.AnswerOptions)
                 .FirstOrDefaultAsync(q => q.Id == request.Id, cancellationToken)
                 ?? throw new Exception("Question is not found");
 
             question.Priority = request.Priority;
             question.Text = request.Text;
+            
+            // Opdater MaxPoints baseret på eksisterende AnswerOptions
+            question.MaxPoints = question.AnswerOptions
+                .Where(o => o.IsCorrect)
+                .Sum(o => o.Weight);
 
             if (request.RoleIds is { Count: > 0 })
             {

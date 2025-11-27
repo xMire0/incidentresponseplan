@@ -6,7 +6,7 @@
 }
 
 .admin-root{background:var(--bg);color:var(--text);min-height:100vh}
-.container{max-width:1120px;margin:0 auto;padding:0 24px}
+.container{max-width:1450px;margin:0 auto;padding:30px 24px 0 24px}
 
 /* topbar + buttons (reuse your Admin styles) */
 .admin-topbar{background:var(--surface);border-bottom:1px solid var(--edge)}

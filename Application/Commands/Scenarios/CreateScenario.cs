@@ -71,12 +71,23 @@ public class CreateScenario
                     if (string.IsNullOrWhiteSpace(optionDto.Text))
                         continue;
 
+                    // Automatisk Weight logik
+                    int weight = optionDto.Weight;
+                    if (optionDto.IsCorrect && weight == 0)
+                    {
+                        weight = 10; // Default for correct answers
+                    }
+                    else if (!optionDto.IsCorrect && weight == 0)
+                    {
+                        weight = 0; // Default for incorrect answers
+                    }
+
                     question.AnswerOptions.Add(new AnswerOption
                     {
                         Question = question,
                         QuestionId = question.Id,
                         Text = optionDto.Text.Trim(),
-                        Weight = optionDto.Weight,
+                        Weight = weight,
                         IsCorrect = optionDto.IsCorrect,
                     });
                 }
@@ -86,6 +97,11 @@ public class CreateScenario
 
                 if (!question.AnswerOptions.Any(o => o.IsCorrect))
                     throw new ArgumentException("Each question must have at least one correct option");
+
+                // Beregn og sæt MaxPoints (summen af alle korrekte optioners Weight)
+                question.MaxPoints = question.AnswerOptions
+                    .Where(o => o.IsCorrect)
+                    .Sum(o => o.Weight);
 
                 if (questionDto.RoleIds.Count > 0)
                 {

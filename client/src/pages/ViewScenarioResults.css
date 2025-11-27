@@ -1,5 +1,5 @@
 .admin-root { background:#0b0f16; color:#e9eef5; min-height:100vh; }
-.container { max-width:1100px; margin:0 auto; padding:20px; }
+.container { max-width:1450px; margin:0 auto; padding:30px 20px 20px 20px; }
 .page-title { font-size:32px; font-weight:800; margin-bottom:4px; }
 .page-subtitle { color:#9aa5b1; margin-bottom:18px; }
 .panel { background:#141826; border:1px solid rgba(255,255,255,.1); border-radius:14px; padding:20px; }

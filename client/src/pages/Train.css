@@ -12,7 +12,6 @@
 
   /* verdict colors */
   --ok:#10b981;        /* correct */
-  --partial:#f59e0b;   /* partial */
   --bad:#ef4444;       /* wrong */
   --info:#60a5fa;      /* neutral */
 }
@@ -22,7 +21,7 @@
   min-height:100vh; color:var(--text); position:relative;
   background:radial-gradient(1200px 600px at 70% -10%, #0d1423 0%, #070b12 40%, #05070c 100%);
 }
-.container{max-width:1160px; margin:0 auto; padding:0 24px}
+.container{max-width:1450px; margin:0 auto; padding:30px 24px 0 24px}
 
 /* ambient blobs */
 .bg-blob{position:absolute; filter:blur(70px); opacity:.35; pointer-events:none; mix-blend:screen;}
@@ -107,7 +106,6 @@
 .q-badge{position:absolute; right:0; top:0; display:grid; place-items:center; width:26px; height:26px; border-radius:8px; background:rgba(255,255,255,.04); border:1px solid var(--edge)}
 .r-check{color:var(--ok)}
 .r-cross{color:var(--bad)}
-.r-partial{color:var(--partial)}
 
 /* options grid */
 .opts{display:grid; gap:8px; margin-top:6px}
@@ -173,7 +171,6 @@
 
 /* verdict styles (after submit) */
 .opt.correct{background:rgba(16,185,129,.13); border-color:rgba(16,185,129,.35)}
-.opt.partial{background:rgba(245,158,11,.12); border-color:rgba(245,158,11,.35)}
 .opt.wrong{background:rgba(239,68,68,.12); border-color:rgba(239,68,68,.35)}
 
 /* legacy compatibility if needed */
