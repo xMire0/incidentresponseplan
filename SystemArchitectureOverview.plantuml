@@ -1,0 +1,20 @@
+@startuml
+title System Architecture Overview
+
+actor User as U
+
+rectangle "Web Client (React)\nHTML / CSS / JavaScript" as FE {
+}
+
+rectangle "Backend API Server\nASP.NET Core Web API\nREST Endpoints (JSON)" as API {
+}
+
+database "Database\nSQLite / SQL Server\nEF Core ORM" as DB
+
+U --> FE : Interacts via Browser
+FE --> API : HTTPS Requests (JSON)
+API --> DB : Queries / Commands
+
+@enduml
+
+

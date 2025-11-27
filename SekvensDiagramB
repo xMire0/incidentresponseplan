@@ -1,0 +1,16 @@
+@startuml
+actor Admin
+participant "Web Client (React)" as FE
+participant "API Server" as API
+participant "Application Layer" as APP
+database "Database" as DB
+
+Admin -> FE: View Incident
+FE -> API: GET /api/incident/{id}
+API -> APP: GetIncidentDetails Query
+APP -> DB: Join Incident + Responses + Questions + Users
+DB --> APP: Incident Data
+APP --> API: Normalized DTO
+API --> FE: JSON Response (Incident + Participants + Scores)
+
+@enduml

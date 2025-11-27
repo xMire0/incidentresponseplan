@@ -1,0 +1,24 @@
+@startuml
+actor User
+participant "Web Client (React)" as FE
+participant "API Server" as API
+participant "Application Layer" as APP
+database "Database" as DB
+
+User -> FE: Start Scenario
+FE -> API: GET /api/scenario/{id}
+API -> APP: Fetch scenario data
+APP -> DB: Query questions + answers
+DB --> APP: Return results
+APP --> API: Return scenario model
+API --> FE: JSON Response (Questions)
+
+User -> FE: Selects answer
+FE -> API: POST /api/response
+API -> APP: Handle CreateResponse
+APP -> DB: Insert Response
+DB --> APP: Success
+APP --> API: Result
+API --> FE: Acknowledgement
+
+@enduml

@@ -1,0 +1,48 @@
+@startuml
+left to right direction
+skinparam actorStyle awesome
+skinparam usecaseBorderColor #333
+skinparam usecaseBackgroundColor #E8E8E8
+skinparam usecaseFontColor #000
+
+actor Administrator as Admin
+actor Employee as User
+
+rectangle "Incident Response Plan System" {
+
+  (Login) as UC_Login
+
+  (View Available Scenarios) as UC_ViewScenarios
+  (Start Training Scenario) as UC_StartScenario
+  (Answer Question) as UC_Answer
+  (View Own Results) as UC_ViewOwnResults
+
+  (Create Scenario) as UC_CreateScenario
+  (Edit Scenario) as UC_EditScenario
+  (Delete Scenario) as UC_DeleteScenario
+
+  (Manage Questions & Answers) as UC_ManageQA
+
+  (View Scenario Results) as UC_ViewScenarioResults
+  (View Incident Details) as UC_ViewIncidentDetails
+  (Generate Report) as UC_GenerateReport
+}
+
+User --> UC_Login
+Admin --> UC_Login
+
+User --> UC_ViewScenarios
+User --> UC_StartScenario
+User --> UC_Answer
+User --> UC_ViewOwnResults
+
+Admin --> UC_CreateScenario
+Admin --> UC_EditScenario
+Admin --> UC_DeleteScenario
+Admin --> UC_ManageQA
+
+Admin --> UC_ViewScenarioResults
+Admin --> UC_ViewIncidentDetails
+Admin --> UC_GenerateReport
+
+@enduml
