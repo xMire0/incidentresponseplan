@@ -49,7 +49,6 @@ public class GetIncidentResults
                     continue;
 
                 var scenario = incident.Scenario;
-                var questionMaxLookup = BuildQuestionMaxLookup(scenario);
 
                 var groups = incident.Responses
                     .GroupBy(r => r.UserId)
@@ -84,11 +83,6 @@ public class GetIncidentResults
 
                         var points = questionGroup.Sum(r => r.AnswerOption?.Weight ?? 0);
 
-                        if (!questionMaxLookup.ContainsKey(questionId))
-                        {
-                            questionMaxLookup[questionId] = Math.Max(points, 0);
-                        }
-
                         var correctOptionIds = answerOptions
                             .Where(o => o.IsCorrect)
                             .Select(o => o.Id)
@@ -97,13 +91,14 @@ public class GetIncidentResults
                         var pickedCorrect = chosenOptionIds.Count(id => correctOptionIds.Contains(id));
                         var pickedIncorrect = chosenOptionIds.Any(id => !correctOptionIds.Contains(id));
 
-                        var verdict = correctOptionIds.Count == 0
-                            ? (points > 0 ? "partial" : "incorrect")
-                            : pickedCorrect == correctOptionIds.Count && !pickedIncorrect
-                                ? "correct"
-                                : pickedCorrect > 0
-                                    ? "partial"
-                                    : "incorrect";
+                        // Verdict logik: kun "correct" eller "incorrect" (fjernet "partial")
+                        // "correct": alle korrekte svar valgt OG ingen forkerte svar valgt
+                        // "incorrect": alt andet
+                        var verdict = correctOptionIds.Count > 0 
+                            && pickedCorrect == correctOptionIds.Count 
+                            && !pickedIncorrect
+                            ? "correct"
+                            : "incorrect";
 
                         var optionDtos = answerOptions
                             .Select(o => new OptionResultDto
@@ -135,6 +130,9 @@ public class GetIncidentResults
                             .DefaultIfEmpty(questionGroup.First().Answer ?? "-")
                             .ToList();
 
+                        // Brug Question.MaxPoints direkte
+                        var maxPoints = scenarioQuestion?.MaxPoints ?? 0;
+                        
                         detail.Add(new QuestionResultDto
                         {
                             Qid = questionId,
@@ -142,14 +140,16 @@ public class GetIncidentResults
                             Chosen = string.Join(", ", chosenLabel),
                             Verdict = verdict,
                             Points = points,
-                            Max = questionMaxLookup[questionId],
+                            Max = maxPoints,
                             Options = optionDtos
                         });
 
                         score += points;
                     }
 
-                    var maxScore = questionMaxLookup.Values.Sum();
+                    // Beregn maxScore fra alle spørgsmål i scenariet
+                    var maxScore = scenario?.Questions?.Sum(q => q.MaxPoints) ?? 0;
+                    // Point kan overgå maksimal, så procent kan være > 100%
                     var pct = maxScore > 0 ? (int)Math.Round(score * 100d / maxScore) : 0;
                     var status = pct >= 70 ? "pass" : "fail";
 
@@ -174,6 +174,7 @@ public class GetIncidentResults
                     {
                         Id = Guid.NewGuid(),
                         IncidentId = incident.Id,
+                        IncidentTitle = incident.Title,
                         ScenarioId = scenario?.Id,
                         ScenarioTitle = scenario?.Title ?? incident.Title,
                         UserId = user?.Id,
@@ -196,44 +197,13 @@ public class GetIncidentResults
                 .ToList();
         }
 
-        private static Dictionary<Guid, int> BuildQuestionMaxLookup(Scenario? scenario)
-        {
-            var lookup = new Dictionary<Guid, int>();
-
-            if (scenario?.Questions != null)
-            {
-                foreach (var question in scenario.Questions)
-                {
-                    if (question.AnswerOptions.Count == 0)
-                    {
-                        lookup[question.Id] = 0;
-                        continue;
-                    }
-
-                    var hasCorrect = question.AnswerOptions.Any(o => o.IsCorrect);
-                    var max = hasCorrect
-                        ? question.AnswerOptions
-                            .Where(o => o.IsCorrect)
-                            .Select(o => o.Weight)
-                            .DefaultIfEmpty(0)
-                            .Max()
-                        : question.AnswerOptions
-                            .Select(o => o.Weight)
-                            .DefaultIfEmpty(0)
-                            .Max();
-
-                    lookup[question.Id] = Math.Max(0, max);
-                }
-            }
-
-            return lookup;
-        }
     }
 
     public class IncidentResultDto
     {
         public Guid Id { get; set; }
         public Guid IncidentId { get; set; }
+        public string IncidentTitle { get; set; } = string.Empty;
         public Guid? ScenarioId { get; set; }
         public string ScenarioTitle { get; set; } = string.Empty;
         public Guid? UserId { get; set; }

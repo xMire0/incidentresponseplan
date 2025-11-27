@@ -19,7 +19,7 @@
   position:relative;
   overflow:hidden;
 }
-.container{max-width:1160px; margin:0 auto; padding:0 24px}
+.container{max-width:1450px; margin:0 auto; padding:30px 24px 0 24px}
 
 /* Ambient blobs */
 .bg-blob{position:absolute; filter:blur(70px); opacity:.35; pointer-events:none; mix-blend:screen;}

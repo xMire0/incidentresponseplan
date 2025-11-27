@@ -29,14 +29,26 @@ function normaliseIncident(raw) {
   const completedAt = raw.completedAt ?? raw.CompletedAt ?? null;
 
   const responses = Array.isArray(raw.responses ?? raw.Responses)
-    ? (raw.responses ?? raw.Responses).map((r) => ({
-        id: r.id ?? r.Id ?? ensureId(null, "response"),
-        question: r.question?.text ?? r.Question?.Text ?? "Unknown question",
-        role: r.role?.name ?? r.Role?.Name ?? "Unknown role",
-        weight: r.weight ?? r.Weight ?? 0,
-        createdAt: r.createdAt ?? r.CreatedAt ?? null,
-      }))
+    ? (raw.responses ?? raw.Responses)
     : [];
+
+  // Tæl unikke brugere (participants) baseret på userId eller roleId
+  const uniqueParticipants = new Set();
+  responses.forEach((r) => {
+    const user = r.user ?? r.User ?? null;
+    const role = r.role ?? r.Role ?? null;
+    const userId = user?.id ?? user?.Id ?? null;
+    const roleId = role?.id ?? role?.Id ?? null;
+    
+    if (userId) {
+      uniqueParticipants.add(`user:${userId}`);
+    } else if (roleId) {
+      uniqueParticipants.add(`role:${roleId}`);
+    } else {
+      // Hvis ingen user eller role, tæl som anonym
+      uniqueParticipants.add(`anon:${r.id ?? r.Id ?? Math.random()}`);
+    }
+  });
 
   return {
     title: raw.title ?? raw.Title ?? "Untitled incident",
@@ -45,7 +57,7 @@ function normaliseIncident(raw) {
     status,
     startedAt,
     completedAt,
-    responses,
+    participantCount: uniqueParticipants.size,
   };
 }
 
@@ -172,7 +184,7 @@ export default function ViewIncidents() {
                   <div className="c c2">Status</div>
                   <div className="c c3">Started</div>
                   <div className="c c4">Completed</div>
-                  <div className="c c5">Responses</div>
+                  <div className="c c5">Participants</div>
                   <div className="c c6">Actions</div>
                 </div>
 
@@ -195,25 +207,10 @@ export default function ViewIncidents() {
                       {inc.completedAt ? new Date(inc.completedAt).toLocaleString() : "—"}
                     </div>
                     <div className="c c5">
-                      {inc.responses.length === 0 ? (
-                        <span className="muted tiny">No responses yet</span>
+                      {inc.participantCount === 0 ? (
+                        <span className="muted tiny">No participants yet</span>
                       ) : (
-                        <details>
-                          <summary>{inc.responses.length} responses</summary>
-                          <ul>
-                            {inc.responses.map((r) => (
-                              <li key={r.id}>
-                                <div>
-                                  <b>{r.role}</b>: {r.question}
-                                </div>
-                                <div className="muted tiny">
-                                  Weight {r.weight} •{" "}
-                                  {r.createdAt ? new Date(r.createdAt).toLocaleString() : "—"}
-                                </div>
-                              </li>
-                            ))}
-                          </ul>
-                        </details>
+                        <span className="participant-badge">{inc.participantCount} {inc.participantCount === 1 ? 'participant' : 'participants'}</span>
                       )}
                     </div>
                     <div className="c c6">

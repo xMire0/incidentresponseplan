@@ -284,11 +284,6 @@
   color: #d7ffe9;
 }
 
-.pill.partial {
-  border-color: rgba(245, 158, 11, 0.45);
-  background: rgba(245, 158, 11, 0.14);
-  color: #fff2d4;
-}
 
 .pill.incorrect {
   border-color: rgba(239, 68, 68, 0.45);

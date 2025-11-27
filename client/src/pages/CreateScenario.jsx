@@ -404,7 +404,8 @@ export default function CreateScenario() {
     );
   };
 
-  // Toggle this option’s correctness
+  // Toggle this option's correctness
+  // Automatisk Weight logik: IsCorrect=true → Weight=10 (default), IsCorrect=false → Weight=0 (default)
   const markCorrect = (qid, oid) => {
     setQuestions((q) =>
       q.map((x) =>
@@ -416,8 +417,8 @@ export default function CreateScenario() {
                 o.id !== oid
                   ? o
                   : o.kind === "correct"
-                  ? { ...o, kind: "incorrect" } // turn off
-                  : { ...o, kind: "correct", score: Math.max(10, o.score || 10) } // turn on
+                  ? { ...o, kind: "incorrect", score: o.score === 10 ? 0 : o.score } // turn off, keep custom score if not default
+                  : { ...o, kind: "correct", score: o.score === 0 ? 10 : o.score } // turn on, keep custom score if not default
               ),
             }
       )
@@ -451,11 +452,23 @@ export default function CreateScenario() {
       risk: mapRiskValue(meta.risk),
       questions: payload.questions.map((q) => {
         const answerOptions = (q.options ?? [])
-          .map((option) => ({
-            text: option.text?.trim() ?? "",
-            weight: Number.isFinite(Number(option.score)) ? Number(option.score) : 0,
-            isCorrect: option.kind === "correct",
-          }))
+          .map((option) => {
+            const isCorrect = option.kind === "correct";
+            let weight = Number.isFinite(Number(option.score)) ? Number(option.score) : 0;
+            
+            // Automatisk Weight logik: IsCorrect=true → Weight=10 (default), IsCorrect=false → Weight=0 (default)
+            if (isCorrect && weight === 0) {
+              weight = 10; // Default for correct answers
+            } else if (!isCorrect && weight === 0) {
+              weight = 0; // Default for incorrect answers
+            }
+            
+            return {
+              text: option.text?.trim() ?? "",
+              weight: weight,
+              isCorrect: isCorrect,
+            };
+          })
           .filter((option) => option.text.length > 0);
 
         return {
@@ -651,7 +664,7 @@ export default function CreateScenario() {
                         title={o.kind === "correct" ? "This is a correct answer (toggle)" : "Mark as correct"}
                         aria-label={o.kind === "correct" ? "Correct answer" : "Mark option as correct"}
                       >
-                        {o.kind === "correct" ? "✓" : o.kind === "partial" ? "~" : "×"}
+                        {o.kind === "correct" ? "✓" : "×"}
                       </button>
 
                       <input
@@ -678,7 +691,6 @@ export default function CreateScenario() {
                         title="Kind"
                       >
                         <option value="correct">correct</option>
-                        <option value="partial">partial</option>
                         <option value="incorrect">incorrect</option>
                         <option value="none">none</option>
                       </select>
@@ -793,7 +805,7 @@ export default function CreateScenario() {
                     {(bankSelected.options || []).map((o) => (
                       <div key={o.id} className={`opt-row status-${o.kind}`}>
                         <div className={`opt-check ${o.kind}`} aria-hidden>
-                          {o.kind === "correct" ? "✓" : o.kind === "partial" ? "~" : "×"}
+                          {o.kind === "correct" ? "✓" : "×"}
                         </div>
 
                         <div className="opt-text">{o.text}</div>

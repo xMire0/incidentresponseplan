@@ -1,5 +1,6 @@
 using Domain.Entities;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 using Persistence;
 
 namespace Application.Commands;
@@ -18,12 +19,35 @@ public class EditAnswerOption
     {
         public async Task Handle(Command request, CancellationToken cancellationToken)
         {
-            var option = await context.AnswerOptions.FindAsync([request.Id], cancellationToken)
+            var option = await context.AnswerOptions
+                .Include(o => o.Question)
+                    .ThenInclude(q => q.AnswerOptions)
+                .FirstOrDefaultAsync(o => o.Id == request.Id, cancellationToken)
                 ?? throw new InvalidOperationException("Answer option not found");
 
+            var oldWeight = option.Weight;
+            var oldIsCorrect = option.IsCorrect;
+
+            // Automatisk Weight logik
+            int weight = request.Weight;
+            if (request.IsCorrect && weight == 0)
+            {
+                weight = 10; // Default for correct answers
+            }
+            else if (!request.IsCorrect && weight == 0)
+            {
+                weight = 0; // Default for incorrect answers
+            }
+
             option.Text = request.Text;
-            option.Weight = request.Weight;
+            option.Weight = weight;
             option.IsCorrect = request.IsCorrect;
+
+            // Opdater Question.MaxPoints (summen af alle korrekte optioners Weight)
+            var question = option.Question;
+            question.MaxPoints = question.AnswerOptions
+                .Where(o => o.IsCorrect)
+                .Sum(o => o.Weight);
 
             await context.SaveChangesAsync(cancellationToken);
         }

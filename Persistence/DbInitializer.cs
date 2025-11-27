@@ -120,9 +120,39 @@ public class DbInitializer
         }
 
         //
-        // 5️⃣ Save all data
+        // 5️⃣ Calculate and set MaxPoints for each question
+        //
+        foreach (var question in ransomwareScenario.Questions)
+        {
+            question.MaxPoints = question.AnswerOptions
+                .Where(o => o.IsCorrect)
+                .Sum(o => o.Weight);
+        }
+
+        //
+        // 6️⃣ Save all data
         //
         context.Scenarios.Add(ransomwareScenario);
         await context.SaveChangesAsync();
+        
+        //
+        // 7️⃣ Update MaxPoints for any existing questions (data migration)
+        //
+        var existingQuestions = await context.Questions
+            .Include(q => q.AnswerOptions)
+            .Where(q => q.MaxPoints == 0)
+            .ToListAsync();
+        
+        foreach (var question in existingQuestions)
+        {
+            question.MaxPoints = question.AnswerOptions
+                .Where(o => o.IsCorrect)
+                .Sum(o => o.Weight);
+        }
+        
+        if (existingQuestions.Count > 0)
+        {
+            await context.SaveChangesAsync();
+        }
     }
 }

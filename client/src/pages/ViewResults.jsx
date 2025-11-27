@@ -13,14 +13,6 @@ export default function ViewResults() {
 
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState([]);
-  const scenarioOptions = useMemo(() => {
-    const map = new Map();
-    rows.forEach(r => {
-      if (r.scenarioId && r.scenarioTitle)
-        map.set(r.scenarioId, r.scenarioTitle);
-    });
-    return Array.from(map.entries()).map(([id, title]) => ({ id, title }));
-  }, [rows]);
   const teamOptions = useMemo(() => {
     const map = new Map();
     rows.forEach(r => {
@@ -37,10 +29,15 @@ export default function ViewResults() {
 
   // existing filters
   const [scenario, setScenario]   = useState("all");
+  const [incident, setIncident]   = useState("all");
   const [q, setQ]                 = useState("");
   const [verdict, setVerdict]     = useState("all");
   const [from, setFrom]           = useState("");
   const [to, setTo]               = useState("");
+  
+  // Load scenarios and incidents
+  const [scenarios, setScenarios] = useState([]);
+  const [incidents, setIncidents] = useState([]);
 
   // new: team + compare
   const [teamId, setTeamId]                 = useState("");       // main team filter ("" = all)
@@ -77,15 +74,50 @@ export default function ViewResults() {
     return () => { live = false; };
   }, []);
 
+  // Load scenarios
+  useEffect(() => {
+    let live = true;
+    api.get("/api/scenarios").then(({ data }) => {
+      if (!live) return;
+      setScenarios(Array.isArray(data) ? data : []);
+    }).catch(err => {
+      console.error("Failed to load scenarios", err);
+    });
+    return () => { live = false; };
+  }, []);
+
+  // Load incidents when scenario is selected
+  useEffect(() => {
+    if (scenario === "all") {
+      setIncidents([]);
+      setIncident("all");
+      return;
+    }
+    
+    let live = true;
+    api.get(`/api/scenarios/${scenario}/incidents`).then(({ data }) => {
+      if (!live) return;
+      setIncidents(Array.isArray(data) ? data : []);
+      // Reset incident filter when scenario changes
+      setIncident("all");
+    }).catch(err => {
+      console.error("Failed to load incidents", err);
+      setIncidents([]);
+    });
+    return () => { live = false; };
+  }, [scenario]);
+
   // predicate shared by current + comparison cohorts
   const basePredicate = useCallback((r) => {
     if (scenario !== "all" && r.scenarioId !== scenario) return false;
+    if (incident !== "all" && r.incidentId !== incident) return false;
     if (verdict !== "all" && r.status !== verdict) return false;
-    if (q && !(`${r.userEmail} ${r.scenarioTitle}`.toLowerCase().includes(q.toLowerCase()))) return false;
+    const incidentTitle = r.incidentTitle || "";
+    if (q && !(`${r.userEmail} ${r.scenarioTitle} ${incidentTitle}`.toLowerCase().includes(q.toLowerCase()))) return false;
     if (from && new Date(r.completedAt) < new Date(from)) return false;
     if (to && new Date(r.completedAt) > new Date(`${to}T23:59:59`)) return false;
     return true;
-  }, [scenario, verdict, q, from, to]);
+  }, [scenario, incident, verdict, q, from, to]);
 
   // filtered for the current view (selected team only)
   const filtered = useMemo(
@@ -175,7 +207,7 @@ export default function ViewResults() {
     return sorted.slice(start, start + pageSize);
   }, [sorted, page]);
 
-  useEffect(() => { setPage(1); }, [scenario, q, verdict, from, to, teamId, tableView, compareMode, compareTeamId]);
+  useEffect(() => { setPage(1); }, [scenario, incident, q, verdict, from, to, teamId, tableView, compareMode, compareTeamId]);
 
   const setSortBy = (by) => {
     setSort(s => s.by === by ? { by, dir: s.dir === "asc" ? "desc" : "asc" } : { by, dir: "desc" });
@@ -286,16 +318,27 @@ export default function ViewResults() {
             {/* Existing filter row */}
             <select className="input" value={scenario} onChange={e => setScenario(e.target.value)}>
               <option value="all">All scenarios</option>
-              {scenarioOptions.map(s => (
-                <option key={s.id} value={s.id}>
-                  {s.title}
+              {scenarios.map(s => (
+                <option key={s.id ?? s.Id} value={s.id ?? s.Id}>
+                  {s.title ?? s.Title}
                 </option>
               ))}
             </select>
 
+            {scenario !== "all" && (
+              <select className="input" value={incident} onChange={e => setIncident(e.target.value)}>
+                <option value="all">All incidents</option>
+                {incidents.map(i => (
+                  <option key={i.id ?? i.Id} value={i.id ?? i.Id}>
+                    {i.title ?? i.Title}
+                  </option>
+                ))}
+              </select>
+            )}
+
             <input
               className="input"
-              placeholder="Search user or scenario…"
+              placeholder="Search user, scenario, or incident…"
               value={q}
               onChange={e => setQ(e.target.value)}
             />
@@ -409,9 +452,10 @@ export default function ViewResults() {
           <div className="panel table-wrap">
             <div className="table">
               <div className="t-head sticky">
-                <div className="t-row">
+                <div className="t-row-results">
                   <div className="c user"   onClick={() => setSortBy("userEmail")}>User {sort.by==="userEmail" ? arrow(sort.dir) : null}</div>
                   <div className="c scen"   onClick={() => setSortBy("scenarioTitle")}>Scenario {sort.by==="scenarioTitle" ? arrow(sort.dir) : null}</div>
+                  <div className="c incident" onClick={() => setSortBy("incidentTitle")}>Incident {sort.by==="incidentTitle" ? arrow(sort.dir) : null}</div>
                   <div className="c score"  onClick={() => setSortBy("pct")}>Score {sort.by==="pct" ? arrow(sort.dir) : null}</div>
                   <div className="c verdict"onClick={() => setSortBy("status")}>Verdict {sort.by==="status" ? arrow(sort.dir) : null}</div>
                   <div className="c date"   onClick={() => setSortBy("completedAt")}>Date {sort.by==="completedAt" ? arrow(sort.dir) : null}</div>
@@ -426,9 +470,9 @@ export default function ViewResults() {
                   {pageRows.map(r => {
                     const teamLabel = r.teamName || teamNameMap.get(r.teamId) || "—";
                     return (
-                    <div className="t-row" key={r.id + "-" + r.__cohort}>
+                    <div className="t-row-results" key={r.id + "-" + r.__cohort}>
                       <div className="c user">
-                        <span className="avatar">{r.userEmail[0].toUpperCase()}</span>
+                        <span className="avat ar">{r.userEmail[0].toUpperCase()}</span>
                         <div className="u">
                           <b>{r.userEmail}</b>
                           <small className="muted">Team: {teamLabel}</small>
@@ -446,10 +490,13 @@ export default function ViewResults() {
                         <small className="muted">Max {r.maxScore} pts</small>
                       </div>
 
+                      <div className="c incident">
+                        <div><b>{r.incidentTitle || "—"}</b></div>
+                      </div>
+
                       <div className="c score">
                         <div className="bar"><span style={{ width: `${Math.max(0, Math.min(100, r.pct))}%` }} /></div>
                         <b>{r.score}/{r.maxScore}</b>
-                        <small>{r.pct}%</small>
                       </div>
 
                       <div className="c verdict">
@@ -457,12 +504,14 @@ export default function ViewResults() {
                       </div>
 
                       <div className="c date">
-                        {new Date(r.completedAt).toLocaleDateString()}<br />
-                        <small className="muted">{fmtDuration(r.durationSec)}</small>
+                        <div>
+                          {new Date(r.completedAt).toLocaleDateString()}<br />
+                          <small className="muted">{fmtDuration(r.durationSec)}</small>
+                        </div>
                       </div>
 
                       <div className="c act">
-                        <button className="btn-ghost" onClick={() => setOpen(r)}>View</button>
+                        <button className="btn-ghost btn-view" onClick={(e) => { e.stopPropagation(); setOpen(r); }}>View</button>
                       </div>
                     </div>
                   )})}
@@ -606,7 +655,7 @@ function fmtDuration(sec){
 }
 
 function labelFor(v){
-  return v === "correct" ? "Correct" : v === "partial" ? "Partial" : "Incorrect";
+  return v === "correct" ? "Correct" : "Incorrect";
 }
 
 // tiny KPI delta chip

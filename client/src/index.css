@@ -9,7 +9,7 @@ body{
   margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Inter, Arial;
   background: var(--bg); color: var(--fg);
 }
-.container{ width:min(1100px, 92%); margin:0 auto; }
+.container{ width:min(1450px, 92%); margin:0 auto; min-width: 0; }
 .content{ padding: 28px 20px 40px; }
 
 h1,h2,h3{ margin: 0 0 10px; }

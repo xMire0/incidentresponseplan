@@ -19,9 +19,9 @@
 
 /* === Layout === */
 .container {
-  max-width: 1120px;
+  max-width: 1450px;
   margin: 0 auto;
-  padding: 0 24px;
+  padding: 30px 24px 0 24px;
   margin-top: 100px;
 }
 .admin-root {

@@ -510,13 +510,20 @@ export default function EditSpecificScenario() {
     }));
   };
 
+  // Automatisk Weight logik: IsCorrect=true → Weight=10 (default), IsCorrect=false → Weight=0 (default)
   const toggleOptionCorrect = (questionId, optionId) => {
     markQuestionDirty(questionId, (q) => ({
       ...q,
       options: q.options.map((o) => {
         if (o.id !== optionId) return o;
         const nextStatus = o.status === "new" || isTempId(o.id) ? "new" : "updated";
-        return { ...o, isCorrect: !o.isCorrect, status: nextStatus };
+        const newIsCorrect = !o.isCorrect;
+        // Automatisk Weight: hvis IsCorrect=true og Weight=0, sæt Weight=10
+        // Hvis IsCorrect=false og Weight=10 (default), sæt Weight=0
+        const newWeight = newIsCorrect 
+          ? (o.weight === 0 ? 10 : o.weight) 
+          : (o.weight === 10 ? 0 : o.weight);
+        return { ...o, isCorrect: newIsCorrect, weight: newWeight, status: nextStatus };
       }),
     }));
   };
@@ -576,10 +583,18 @@ export default function EditSpecificScenario() {
         }
 
         if (option.status === "new" || isTempId(option.id) || question.status === "new") {
+          // Automatisk Weight logik før API kald
+          let weight = option.weight;
+          if (option.isCorrect && weight === 0) {
+            weight = 10; // Default for correct answers
+          } else if (!option.isCorrect && weight === 0) {
+            weight = 0; // Default for incorrect answers
+          }
+          
           const { data } = await api.post("/api/answeroption", {
             questionId: persistedQuestionId,
             text: option.text,
-            weight: option.weight,
+            weight: weight,
             isCorrect: option.isCorrect,
           });
           nextOptions.push({
@@ -588,9 +603,17 @@ export default function EditSpecificScenario() {
             status: "existing",
           });
         } else if (option.status === "updated") {
+          // Automatisk Weight logik før API kald
+          let weight = option.weight;
+          if (option.isCorrect && weight === 0) {
+            weight = 10; // Default for correct answers
+          } else if (!option.isCorrect && weight === 0) {
+            weight = 0; // Default for incorrect answers
+          }
+          
           await api.put(`/api/answeroption/${option.id}`, {
             text: option.text,
-            weight: option.weight,
+            weight: weight,
             isCorrect: option.isCorrect,
           });
           nextOptions.push({
@@ -749,7 +772,7 @@ export default function EditSpecificScenario() {
 
         <div className="panel">
           <div className="panel-heading">
-            <h3 className="panel-title">Questions</h3>
+          <h3 className="panel-title">Questions</h3>
             <div className="row gap">
               <button className="btn-ghost" onClick={addQuestion}>
                 + Add question
@@ -773,7 +796,7 @@ export default function EditSpecificScenario() {
                 activeOptions.some((o) => o.status === "new" || o.status === "updated");
 
               return (
-                <div key={q.id} className="q-card">
+            <div key={q.id} className="q-card">
                   <div className="q-head">
                     <div>
                       <b>Q{index + 1}</b>
@@ -804,9 +827,9 @@ export default function EditSpecificScenario() {
                   <div className="form-row">
                     <label>Question text</label>
                     <textarea
-                      className="input"
+                className="input"
                       rows={2}
-                      value={q.text}
+                value={q.text}
                       onChange={(e) => markQuestionDirty(q.id, { text: e.target.value })}
                     />
                   </div>
@@ -891,7 +914,7 @@ export default function EditSpecificScenario() {
                       ))
                     )}
                   </div>
-                </div>
+            </div>
               );
             })
           )}
