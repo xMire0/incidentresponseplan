@@ -14,6 +14,8 @@ import ViewScenarioResults from "./pages/ViewScenarioResults.jsx";
 import EditSpecificScenario from "./pages/EditSpecificScenario.jsx";
 import CreateIncident from "./pages/CreateIncident.jsx";
 import ViewIncidents from "./pages/ViewIncidents.jsx";
+import UserManagement from "./pages/UserManagement.jsx";
+import UserDetails from "./pages/UserDetails.jsx";
 
 
 
@@ -60,7 +62,8 @@ export default function App() {
         <Route path="/admin/scenario/:id/edit" element={<EditSpecificScenario />} />
         <Route path="/admin/scenario/:id/create-incident" element={<CreateIncident />} />
         <Route path="/admin/scenario/:id/incidents" element={<ViewIncidents />} />
-
+        <Route path="/admin/users" element={<UserManagement />} />
+        <Route path="/admin/users/:id" element={<UserDetails />} />
 
 
 

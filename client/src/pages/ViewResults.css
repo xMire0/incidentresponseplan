@@ -267,11 +267,23 @@
 .drawer {
   position: fixed; inset: 0; display: flex; justify-content: flex-end; z-index: 50;
 }
-.drawer-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,.10); }
+.drawer-backdrop { 
+  position: absolute; 
+  inset: 0; 
+  background: rgba(0,0,0,.10); 
+  z-index: 1;
+}
 .drawer-panel {
-  position: relative; width: min(520px, 92vw); height: 100%;
-  background: var(--surface); border-left: 1px solid var(--edge);
-  box-shadow: -10px 0 40px rgba(0,0,0,.35); display: flex; flex-direction: column;
+  position: relative; 
+  width: min(520px, 92vw); 
+  height: 100%;
+  background: var(--surface); 
+  border-left: 1px solid var(--edge);
+  box-shadow: -10px 0 40px rgba(0,0,0,.35); 
+  display: flex; 
+  flex-direction: column;
+  z-index: 2;
+  pointer-events: auto;
 }
 .drawer-head { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-bottom: 1px solid var(--edge); }
 .drawer-meta {
@@ -346,6 +358,18 @@
   align-items: center;
   gap: 8px;
   font-size: 12px;
+}
+.q-actions {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--edge);
+  display: flex;
+  justify-content: flex-end;
+}
+.btn-sm {
+  padding: 6px 12px;
+  font-size: 13px;
+  height: auto;
 }
 .tag {
   padding: 2px 8px;

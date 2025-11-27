@@ -345,7 +345,7 @@ export default function Train(){
 
     const bulkPayload = {
       incidentId: sc.id,
-      markCompleted: true,
+      markCompleted: false, // Employees don't mark incidents as completed globally
       responses: allQs.flatMap((question) => {
         const picks = arr(answers[question.id]);
         if (!picks.length) return [];

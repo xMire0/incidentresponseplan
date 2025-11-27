@@ -532,13 +532,16 @@ export default function ViewResults() {
       {/* Drawer (sibling overlay) */}
       {open && (
         <div className="drawer" role="dialog" aria-modal="true">
-          <div className="drawer-panel" onClick={(e) => e.stopPropagation()}>
-            <div className="drawer-head">
+          <div className="drawer-panel" onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
+            <div className="drawer-head" onClick={(e) => e.stopPropagation()}>
               <b>Result details</b>
-              <button className="btn-ghost" onClick={() => setOpen(null)}>Close</button>
+              <button className="btn-ghost" onClick={(e) => {
+                e.stopPropagation();
+                setOpen(null);
+              }}>Close</button>
             </div>
 
-            <div className="drawer-meta">
+            <div className="drawer-meta" onClick={(e) => e.stopPropagation()}>
               <div>
                 <div className="muted">User</div>
                 <div>{open.userEmail}</div>
@@ -557,7 +560,7 @@ export default function ViewResults() {
               </div>
             </div>
 
-            <div className="q-list">
+            <div className="q-list" onClick={(e) => e.stopPropagation()}>
               {(open.detail ?? []).map((q, idx) => {
                 const qid = String(q.qid || q.questionId || idx);
                 const isOpen = expandedQuestionId === qid;
@@ -588,7 +591,7 @@ export default function ViewResults() {
                     </button>
 
                     {isOpen && (
-                      <div className="q-options">
+                      <div className="q-options" onClick={(e) => e.stopPropagation()}>
                         {options.length === 0 ? (
                           <div className="q-option muted">No answer options available.</div>
                         ) : (
@@ -601,7 +604,7 @@ export default function ViewResults() {
                             ].filter(Boolean).join(" ");
 
                             return (
-                              <div className={classes} key={optionKey}>
+                              <div className={classes} key={optionKey} onClick={(e) => e.stopPropagation()}>
                                 <div>
                                   <b>{opt.text || "Option"}</b>
                                   <small className="muted">
@@ -624,13 +627,17 @@ export default function ViewResults() {
               })}
             </div>
 
-            <div className="drawer-actions">
-              <button className="btn-outlined" onClick={() => setOpen(null)}>Close</button>
+            <div className="drawer-actions" onClick={(e) => e.stopPropagation()}>
+              <button className="btn-outlined" onClick={(e) => {
+                e.stopPropagation();
+                setOpen(null);
+              }}>Close</button>
             </div>
           </div>
           <div 
             className="drawer-backdrop" 
             onClick={(e) => {
+              // Only close if clicking directly on backdrop
               if (e.target === e.currentTarget) {
                 setOpen(null);
               }

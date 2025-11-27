@@ -274,6 +274,7 @@ export default function ViewSpecificIncident() {
   const [loading, setLoading] = useState(true);
   const [incident, setIncident] = useState(null);
   const [error, setError] = useState(null);
+  const [updating, setUpdating] = useState(false);
   const [expandedAnswerKey, setExpandedAnswerKey] = useState(null);
 
   useEffect(() => {
@@ -400,6 +401,36 @@ export default function ViewSpecificIncident() {
               <b>Questions:</b> {incident.questionCount}
             </div>
           </div>
+          {incident.statusKey !== "Completed" && (
+            <div style={{ marginTop: "12px" }}>
+              <button
+                className="btn-primary"
+                disabled={updating}
+                onClick={async () => {
+                  if (!confirm("Mark this incident as completed? This will mark it as finished for all users.")) {
+                    return;
+                  }
+                  setUpdating(true);
+                  try {
+                    await api.put(`/api/incident/${incident.id}`, {
+                      status: "Completed",
+                      completedAt: new Date().toISOString(),
+                    });
+                    // Reload incident data
+                    const { data } = await api.get(`/api/incident/${incident.id}`);
+                    setIncident(normaliseIncident(data));
+                  } catch (err) {
+                    console.error("Failed to mark incident as completed", err);
+                    alert("Failed to mark incident as completed. Please try again.");
+                  } finally {
+                    setUpdating(false);
+                  }
+                }}
+              >
+                {updating ? "Marking..." : "Mark as Completed"}
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="panel">

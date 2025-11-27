@@ -67,20 +67,20 @@
 }
 
 .filters {
-  display:grid;
-  grid-template-columns:1fr 180px;
-  gap:10px;
+  display:block;
   margin-bottom:12px;
-  align-items:center;
+  width:100%;
 }
 
 .input {
+  width:100%;
   height:38px;
   border-radius:12px;
   border:1px solid var(--edge);
   background:#0f1422;
   color:var(--text);
   padding:0 10px;
+  box-sizing:border-box;
 }
 .input:focus {
   border-color:#2a3350;

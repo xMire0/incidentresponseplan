@@ -10,22 +10,51 @@ public class DbInitializer
     public static async Task SeedData(AppDbContext context)
     {
         // Check if data already exists
-        if (await context.Scenarios.AnyAsync())
+        if (await context.Scenarios.AnyAsync() && await context.Users.AnyAsync())
         {
             return; // Data already seeded
         }
 
         //
-        // 1️⃣ Seed Roles
+        // 1️⃣ Seed Roles (only keep: admin, analyst, developer, sikkerhedsmanager)
         //
+        // Remove all existing roles first
+        var allExistingRoles = await context.Roles.ToListAsync();
+        context.Roles.RemoveRange(allExistingRoles);
+        await context.SaveChangesAsync();
+
         var roles = new List<Role>
         {
-            new() { Name = "IT", SecurityClearence = SecurityClearence.High },
-            new() { Name = "Developer", SecurityClearence = SecurityClearence.Medium },
+            new() { Name = "Admin", SecurityClearence = SecurityClearence.Admin },
             new() { Name = "Analyst", SecurityClearence = SecurityClearence.Medium },
-            new() { Name = "Admin", SecurityClearence = SecurityClearence.Admin }
+            new() { Name = "Developer", SecurityClearence = SecurityClearence.Medium },
+            new() { Name = "Sikkerhedsmanager", SecurityClearence = SecurityClearence.High }
         };
         context.Roles.AddRange(roles);
+        await context.SaveChangesAsync();
+
+        var adminRole = roles.First(r => r.Name == "Admin");
+        var analystRole = roles.First(r => r.Name == "Analyst");
+        var developerRole = roles.First(r => r.Name == "Developer");
+        var sikkerhedsmanagerRole = roles.First(r => r.Name == "Sikkerhedsmanager");
+
+        //
+        // 1.5️⃣ Seed Users with passwords
+        //
+        // Simple password hashing (in production, use BCrypt or similar)
+        // For demo purposes, we'll store plain text passwords (NOT recommended for production!)
+        // Passwords: user1, user2, user3, etc.
+        var users = new List<User>
+        {
+            new() { Username = "admin1", Email = "admin1@company.com", PasswordHash = "admin123", RoleId = adminRole.Id },
+            new() { Username = "analyst1", Email = "analyst1@company.com", PasswordHash = "analyst123", RoleId = analystRole.Id },
+            new() { Username = "analyst2", Email = "analyst2@company.com", PasswordHash = "analyst456", RoleId = analystRole.Id },
+            new() { Username = "developer1", Email = "developer1@company.com", PasswordHash = "dev123", RoleId = developerRole.Id },
+            new() { Username = "developer2", Email = "developer2@company.com", PasswordHash = "dev456", RoleId = developerRole.Id },
+            new() { Username = "sikkerhed1", Email = "sikkerhed1@company.com", PasswordHash = "sikkerhed123", RoleId = sikkerhedsmanagerRole.Id },
+            new() { Username = "sikkerhed2", Email = "sikkerhed2@company.com", PasswordHash = "sikkerhed456", RoleId = sikkerhedsmanagerRole.Id }
+        };
+        context.Users.AddRange(users);
         await context.SaveChangesAsync();
 
         //
@@ -109,14 +138,11 @@ public class DbInitializer
         //
         // 4️⃣ Link Roles to Questions (optional)
         //
-        // Example: all questions apply to both IT and Developer
-        var itRole = roles.First(r => r.Name == "IT");
-        var devRole = roles.First(r => r.Name == "Developer");
-
+        // Example: all questions apply to Developer and Analyst
         foreach (var q in ransomwareScenario.Questions)
         {
-            q.QuestionRoles.Add(new QuestionRole { Role = itRole });
-            q.QuestionRoles.Add(new QuestionRole { Role = devRole });
+            q.QuestionRoles.Add(new QuestionRole { Role = developerRole });
+            q.QuestionRoles.Add(new QuestionRole { Role = analystRole });
         }
 
         //

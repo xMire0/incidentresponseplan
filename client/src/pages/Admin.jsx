@@ -153,6 +153,40 @@ export default function Admin() {
               Generate report
             </button>
           </article>
+
+          {/* User Management */}
+          <article className="admin-card">
+            <div className="card-top">
+              <span
+                className="card-icon"
+                style={{
+                  background: "linear-gradient(135deg,#6b61ff,#5b52e8)",
+                  boxShadow: "0 0 12px rgba(107,97,255,.4)",
+                }}
+              >
+                <svg viewBox="0 0 24 24" width="24" height="24">
+                  <circle cx="12" cy="8" r="4" fill="#ffffff" />
+                  <path
+                    d="M6 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"
+                    stroke="#ffffff"
+                    strokeWidth="1.8"
+                    fill="none"
+                  />
+                </svg>
+              </span>
+              <span className="dot dot-purple" />
+            </div>
+
+            <h3 className="card-title">User Management</h3>
+            <p className="card-desc">
+              Manage users, view their progress, and track their responses to incidents
+            </p>
+
+            <button className="btn-gradient purple" onClick={() => navigate("/admin/users")}>
+              Manage Users
+            </button>
+          </article>
+
           {/* View Scenarios */}
 <article className="admin-card">
   <div className="card-top">
