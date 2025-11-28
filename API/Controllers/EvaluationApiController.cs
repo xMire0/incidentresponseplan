@@ -4,10 +4,12 @@ using Application.Queries;
 
 using Domain.Entities;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace API.Controllers;
 
+[Authorize(Roles = "Admin")]
 public class EvaluationController : BaseApiController
 {
 

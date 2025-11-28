@@ -1,3 +1,4 @@
+using Application.Common;
 using Domain.Entities;
 using MediatR;
 using Persistence;
@@ -18,11 +19,15 @@ public class CreateUser
     {
         public async Task<string> Handle(Command request, CancellationToken cancellationToken)
         {
+            var passwordHash = !string.IsNullOrWhiteSpace(request.Password)
+                ? PasswordHasher.HashPassword(request.Password)
+                : null;
+
             var user = new User
             {
                 Username = request.Username,
                 Email = request.Email,
-                PasswordHash = request.Password, // In production, hash this!
+                PasswordHash = passwordHash,
                 RoleId = request.RoleId
             };
 

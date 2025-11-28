@@ -1,3 +1,4 @@
+using Application.Common;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Persistence;
@@ -29,7 +30,7 @@ public class EditUser
                 user.Email = request.Email;
 
             if (!string.IsNullOrWhiteSpace(request.Password))
-                user.PasswordHash = request.Password; // In production, hash this!
+                user.PasswordHash = PasswordHasher.HashPassword(request.Password);
 
             if (request.RoleId.HasValue)
                 user.RoleId = request.RoleId.Value;

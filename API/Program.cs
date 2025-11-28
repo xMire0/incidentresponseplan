@@ -1,7 +1,10 @@
 using Application.Commands;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using Persistence;
 using System;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -40,11 +43,40 @@ builder.Services.AddDbContext<AppDbContext>(opt =>
 builder.Services.AddMediatR(x =>
 x.RegisterServicesFromAssemblyContaining<CreateScenario.Handler>());
 
+// Configure JWT Authentication
+var jwtSettings = builder.Configuration.GetSection("JwtSettings");
+var secretKey = jwtSettings["SecretKey"] ?? throw new InvalidOperationException("JWT SecretKey not configured");
+var issuer = jwtSettings["Issuer"] ?? "IncidentResponseAPI";
+var audience = jwtSettings["Audience"] ?? "IncidentResponseClient";
+
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = issuer,
+        ValidAudience = audience,
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey)),
+        ClockSkew = TimeSpan.Zero // Remove delay of token when expire
+    };
+});
+
+builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
 app.UseRouting();
 app.UseCors("AllowReact");
+app.UseAuthentication();
+app.UseAuthorization();
 app.MapControllers();
 
 using var scope = app.Services.CreateScope();

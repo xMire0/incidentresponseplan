@@ -1,53 +1,85 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-
-// Simpel auth-service. Skift til rigtig API-kald senere (POST /auth/login).
-async function fakeLogin(email, password) {
-  // TODO: erstat med: await api.post("/auth/login", {email, password})
-  // og returner token/rolle fra serveren.
-  await new Promise(r => setTimeout(r, 400));
-  if (!email || !password) throw new Error("Ugyldige credentials");
-
-  // Demo-roller ud fra email
-  const role = email.endsWith("@admin.com") ? "admin" : "developer";
-  const token = "demo-token";
-  return { user: { email, role }, token };
-}
+import api from "../services/api";
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [user, setUser]   = useState(null);
+  const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Hydratér fra localStorage
+  // Verify token and load user on mount
   useEffect(() => {
-    const raw = localStorage.getItem("auth");
-    if (raw) {
+    const verifyAndLoadUser = async () => {
+      const storedToken = localStorage.getItem("auth_token");
+      if (!storedToken) {
+        setLoading(false);
+        return;
+      }
+
       try {
-        const parsed = JSON.parse(raw);
-        setUser(parsed.user ?? null);
-        setToken(parsed.token ?? null);
-      } catch {}
-    }
-    setLoading(false);
+        // Verify token by calling /api/auth/me
+        const { data } = await api.get("/api/auth/me");
+        setUser(data);
+        setToken(storedToken);
+      } catch (error) {
+        // Token invalid or expired
+        localStorage.removeItem("auth_token");
+        localStorage.removeItem("auth");
+        setUser(null);
+        setToken(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    verifyAndLoadUser();
   }, []);
 
   const login = async (email, password) => {
-    const res = await fakeLogin(email, password);
-    setUser(res.user);
-    setToken(res.token);
-    localStorage.setItem("auth", JSON.stringify(res));
-    return res;
+    const { data } = await api.post("/api/auth/login", { email, password });
+    
+    const { token: newToken, user: userData } = data;
+    
+    // Store token
+    localStorage.setItem("auth_token", newToken);
+    
+    // Also store in old format for backward compatibility (can be removed later)
+    localStorage.setItem("auth", JSON.stringify({ user: userData, token: newToken }));
+    
+    setUser(userData);
+    setToken(newToken);
+    
+    return { user: userData, token: newToken };
   };
 
   const logout = () => {
     setUser(null);
     setToken(null);
+    localStorage.removeItem("auth_token");
     localStorage.removeItem("auth");
   };
 
-  const value = useMemo(() => ({ user, token, loading, login, logout }), [user, token, loading]);
+  const verifyToken = async () => {
+    const storedToken = localStorage.getItem("auth_token");
+    if (!storedToken) {
+      setUser(null);
+      setToken(null);
+      return false;
+    }
+
+    try {
+      const { data } = await api.get("/api/auth/me");
+      setUser(data);
+      setToken(storedToken);
+      return true;
+    } catch (error) {
+      logout();
+      return false;
+    }
+  };
+
+  const value = useMemo(() => ({ user, token, loading, login, logout, verifyToken }), [user, token, loading]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

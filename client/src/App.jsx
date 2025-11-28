@@ -1,5 +1,6 @@
 // src/App.jsx
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { ProtectedRoute, RoleRoute } from "./auth/Guards";
 import Admin from "./pages/Admin.jsx";
 import Login from "./pages/Login.jsx";
 import Employee from "./pages/Employee.jsx";
@@ -16,11 +17,6 @@ import CreateIncident from "./pages/CreateIncident.jsx";
 import ViewIncidents from "./pages/ViewIncidents.jsx";
 import UserManagement from "./pages/UserManagement.jsx";
 import UserDetails from "./pages/UserDetails.jsx";
-
-
-
-
-
 
 export default function App() {
   const { pathname } = useLocation();
@@ -47,29 +43,32 @@ export default function App() {
         {/* Default landing → Login */}
         <Route path="/" element={<Navigate to="/login" replace />} />
 
+        {/* Public route */}
         <Route path="/login" element={<Login />} />
-        <Route path="/admin" element={<Admin />} />
-        <Route path="/admin/results" element={<AdminResults />} />
-        <Route path="/admin/create" element={<CreateScenario />} />
-        <Route path="/employee" element={<Employee />} />
-        <Route path="/train/:id" element={<Train />} />
-        <Route path="/admin/reports" element={<GenerateReport />} />
-        <Route path="/admin/scenarios" element={<ViewScenario />} />
-        <Route path="/admin/scenario/create" element={<CreateScenario />} />
-        <Route path="/admin/scenario/:id" element={<ViewSpecificScenario />} />
-        <Route path="/admin/incident/:id" element={<ViewSpecificIncident />} />
-        <Route path="/admin/scenario/:id/results" element={<ViewScenarioResults />} />
-        <Route path="/admin/scenario/:id/edit" element={<EditSpecificScenario />} />
-        <Route path="/admin/scenario/:id/create-incident" element={<CreateIncident />} />
-        <Route path="/admin/scenario/:id/incidents" element={<ViewIncidents />} />
-        <Route path="/admin/users" element={<UserManagement />} />
-        <Route path="/admin/users/:id" element={<UserDetails />} />
 
+        {/* Protected routes - any logged in user */}
+        <Route element={<ProtectedRoute />}>
+          <Route path="/employee" element={<Employee />} />
+          <Route path="/train/:id" element={<Train />} />
+        </Route>
 
-
-
-
-
+        {/* Admin only routes */}
+        <Route element={<RoleRoute allow={["Admin"]} />}>
+          <Route path="/admin" element={<Admin />} />
+          <Route path="/admin/results" element={<AdminResults />} />
+          <Route path="/admin/create" element={<CreateScenario />} />
+          <Route path="/admin/reports" element={<GenerateReport />} />
+          <Route path="/admin/scenarios" element={<ViewScenario />} />
+          <Route path="/admin/scenario/create" element={<CreateScenario />} />
+          <Route path="/admin/scenario/:id" element={<ViewSpecificScenario />} />
+          <Route path="/admin/incident/:id" element={<ViewSpecificIncident />} />
+          <Route path="/admin/scenario/:id/results" element={<ViewScenarioResults />} />
+          <Route path="/admin/scenario/:id/edit" element={<EditSpecificScenario />} />
+          <Route path="/admin/scenario/:id/create-incident" element={<CreateIncident />} />
+          <Route path="/admin/scenario/:id/incidents" element={<ViewIncidents />} />
+          <Route path="/admin/users" element={<UserManagement />} />
+          <Route path="/admin/users/:id" element={<UserDetails />} />
+        </Route>
 
         {/* Fallback → Login */}
         <Route path="*" element={<Navigate to="/login" replace />} />

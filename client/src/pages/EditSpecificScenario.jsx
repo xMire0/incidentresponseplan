@@ -519,10 +519,10 @@ export default function EditSpecificScenario() {
         const nextStatus = o.status === "new" || isTempId(o.id) ? "new" : "updated";
         const newIsCorrect = !o.isCorrect;
         // Automatisk Weight: hvis IsCorrect=true og Weight=0, sæt Weight=10
-        // Hvis IsCorrect=false og Weight=10 (default), sæt Weight=0
+        // Hvis IsCorrect=false, sæt Weight=0 (altid)
         const newWeight = newIsCorrect 
           ? (o.weight === 0 ? 10 : o.weight) 
-          : (o.weight === 10 ? 0 : o.weight);
+          : 0; // Incorrect options should always have weight 0
         return { ...o, isCorrect: newIsCorrect, weight: newWeight, status: nextStatus };
       }),
     }));
@@ -587,8 +587,9 @@ export default function EditSpecificScenario() {
           let weight = option.weight;
           if (option.isCorrect && weight === 0) {
             weight = 10; // Default for correct answers
-          } else if (!option.isCorrect && weight === 0) {
-            weight = 0; // Default for incorrect answers
+          } else if (!option.isCorrect) {
+            // Incorrect options should always have weight 0
+            weight = 0;
           }
           
           const { data } = await api.post("/api/answeroption", {
@@ -607,8 +608,9 @@ export default function EditSpecificScenario() {
           let weight = option.weight;
           if (option.isCorrect && weight === 0) {
             weight = 10; // Default for correct answers
-          } else if (!option.isCorrect && weight === 0) {
-            weight = 0; // Default for incorrect answers
+          } else if (!option.isCorrect) {
+            // Incorrect options should always have weight 0
+            weight = 0;
           }
           
           await api.put(`/api/answeroption/${option.id}`, {

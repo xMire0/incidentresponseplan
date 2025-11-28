@@ -32,21 +32,16 @@ function normaliseIncident(raw) {
     ? (raw.responses ?? raw.Responses)
     : [];
 
-  // Tæl unikke brugere (participants) baseret på userId eller roleId
-  const uniqueParticipants = new Set();
+  // Tæl unikke brugere (participants) - kun én gang per user, ikke per response
+  const uniqueUserIds = new Set();
+  
   responses.forEach((r) => {
     const user = r.user ?? r.User ?? null;
-    const role = r.role ?? r.Role ?? null;
     const userId = user?.id ?? user?.Id ?? null;
-    const roleId = role?.id ?? role?.Id ?? null;
     
+    // Kun tæl userId hvis den findes - hver unik user tælles kun én gang
     if (userId) {
-      uniqueParticipants.add(`user:${userId}`);
-    } else if (roleId) {
-      uniqueParticipants.add(`role:${roleId}`);
-    } else {
-      // Hvis ingen user eller role, tæl som anonym
-      uniqueParticipants.add(`anon:${r.id ?? r.Id ?? Math.random()}`);
+      uniqueUserIds.add(userId);
     }
   });
 
@@ -57,7 +52,7 @@ function normaliseIncident(raw) {
     status,
     startedAt,
     completedAt,
-    participantCount: uniqueParticipants.size,
+    participantCount: uniqueUserIds.size,
   };
 }
 
@@ -184,8 +179,7 @@ export default function ViewIncidents() {
                   <div className="c c2">Status</div>
                   <div className="c c3">Started</div>
                   <div className="c c4">Completed</div>
-                  <div className="c c5">Participants</div>
-                  <div className="c c6">Actions</div>
+                  <div className="c c5">Actions</div>
                 </div>
 
                 {incidents.map((inc) => (
@@ -207,13 +201,6 @@ export default function ViewIncidents() {
                       {inc.completedAt ? new Date(inc.completedAt).toLocaleString() : "—"}
                     </div>
                     <div className="c c5">
-                      {inc.participantCount === 0 ? (
-                        <span className="muted tiny">No participants yet</span>
-                      ) : (
-                        <span className="participant-badge">{inc.participantCount} {inc.participantCount === 1 ? 'participant' : 'participants'}</span>
-                      )}
-                    </div>
-                    <div className="c c6">
                       <button
                         className="btn-ghost"
                         onClick={() => navigate(`/admin/incident/${inc.id}`)}

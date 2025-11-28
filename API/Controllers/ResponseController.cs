@@ -4,12 +4,25 @@ using Domain.Entities;
 using Application.Queries;
 
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace API.Controllers;
 
+[Authorize]
 public class ResponseController : BaseApiController
 {
+    private Guid? GetCurrentUserId()
+    {
+        var userIdClaim = User.FindFirst("UserId")?.Value 
+            ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        
+        if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+            return null;
+        
+        return userId;
+    }
 
     [HttpGet]
 
@@ -28,6 +41,19 @@ public class ResponseController : BaseApiController
     [HttpPost("bulk")]
     public async Task<ActionResult<int>> CreateResponsesBulk([FromBody] CreateResponsesBulk.Command command)
     {
+        // Set UserId from JWT claims if not provided
+        var currentUserId = GetCurrentUserId();
+        if (currentUserId.HasValue)
+        {
+            foreach (var response in command.Responses)
+            {
+                if (!response.UserId.HasValue || response.UserId.Value == Guid.Empty)
+                {
+                    response.UserId = currentUserId.Value;
+                }
+            }
+        }
+        
         var count = await Mediator.Send(command);
         return Ok(new { createdCount = count });
     }
@@ -49,6 +75,25 @@ public class ResponseController : BaseApiController
         };
         await Mediator.Send(command);
         return NoContent();
+    }
+
+    [HttpGet("check/{incidentId}")]
+    public async Task<ActionResult<bool>> CheckUserHasResponded(
+        Guid incidentId, 
+        [FromQuery] string? userEmail, 
+        [FromQuery] Guid? userId)
+    {
+        // Prioritize UserId from JWT claims
+        var currentUserId = GetCurrentUserId();
+        var userIdToUse = currentUserId ?? userId;
+        
+        var hasResponded = await Mediator.Send(new CheckUserHasResponded.Query
+        {
+            IncidentId = incidentId,
+            UserEmail = userEmail,
+            UserId = userIdToUse
+        });
+        return Ok(hasResponded);
     }
 
 }

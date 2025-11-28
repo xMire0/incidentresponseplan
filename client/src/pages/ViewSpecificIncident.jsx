@@ -68,6 +68,24 @@ const normaliseIncident = (raw) => {
   const questionMaxLookup = new Map();
   let fallbackCounter = 0;
 
+  // First, populate questionMaxLookup from scenario.questions if available
+  // This ensures we have MaxPoints even if there are no responses yet
+  if (scenario) {
+    const scenarioQuestions = Array.isArray(scenario.questions ?? scenario.Questions)
+      ? scenario.questions ?? scenario.Questions
+      : [];
+    scenarioQuestions.forEach((q) => {
+      const questionId = q.id ?? q.Id;
+      if (questionId) {
+        const questionKey = String(questionId);
+        const maxPoints = q.maxPoints ?? q.MaxPoints;
+        if (maxPoints != null && maxPoints > 0) {
+          questionMaxLookup.set(questionKey, maxPoints);
+        }
+      }
+    });
+  }
+
   responses.forEach((resp) => {
     const question = resp.question ?? resp.Question ?? {};
     const questionId =
@@ -76,14 +94,21 @@ const normaliseIncident = (raw) => {
       `question-${fallbackCounter++}`;
     const questionKey = typeof questionId === "string" ? questionId : String(questionId);
     if (!questionMaxLookup.has(questionKey)) {
-      const answerOptions = Array.isArray(question.answerOptions ?? question.AnswerOptions)
-        ? question.answerOptions ?? question.AnswerOptions
-        : [];
-      const maxWeight = answerOptions.reduce(
-        (max, option) => Math.max(max, Number(option?.weight ?? option?.Weight ?? 0)),
-        0
-      );
-      questionMaxLookup.set(questionKey, maxWeight);
+      // Use Question.MaxPoints if available (sum of all correct answer options' weights)
+      // Fallback to calculating from answer options if MaxPoints not available
+      const maxPoints = question.maxPoints ?? question.MaxPoints;
+      if (maxPoints != null && maxPoints > 0) {
+        questionMaxLookup.set(questionKey, maxPoints);
+      } else {
+        // Fallback: calculate sum of all correct answer options' weights
+        const answerOptions = Array.isArray(question.answerOptions ?? question.AnswerOptions)
+          ? question.answerOptions ?? question.AnswerOptions
+          : [];
+        const sumOfCorrectWeights = answerOptions
+          .filter(option => option?.isCorrect ?? option?.IsCorrect ?? false)
+          .reduce((sum, option) => sum + Number(option?.weight ?? option?.Weight ?? 0), 0);
+        questionMaxLookup.set(questionKey, sumOfCorrectWeights > 0 ? sumOfCorrectWeights : 0);
+      }
     }
 
     const answerOption = resp.answerOption ?? resp.AnswerOption ?? null;
@@ -182,11 +207,15 @@ const normaliseIncident = (raw) => {
 
     optionRecord.isChosen = true;
 
-    answerEntry.points += points;
-    participant.totalScore += points;
+    // Incorrect options should always give 0 points
+    const actualPoints = isCorrect ? points : 0;
+    answerEntry.points += actualPoints;
+    participant.totalScore += actualPoints;
 
     if (!participant._questionIds.has(questionKey)) {
-      participant.maxScore += questionMaxLookup.get(questionKey) ?? points;
+      // Use MaxPoints from lookup (which now uses Question.MaxPoints)
+      const questionMax = questionMaxLookup.get(questionKey) ?? 0;
+      participant.maxScore += questionMax;
       participant._questionIds.add(questionKey);
     }
   });
@@ -212,11 +241,15 @@ const normaliseIncident = (raw) => {
         ? chosenOptions.map((opt) => opt.text).join(", ")
         : answerTextFallback(chosenOptions);
 
+      const questionMax = questionMaxLookup.get(entry.questionId) ?? 0;
+      // Ensure points cannot exceed max
+      const cappedPoints = Math.min(entry.points, questionMax);
+      
       return {
         questionId: entry.questionId,
         question: entry.question,
-        points: entry.points,
-        max: questionMaxLookup.get(entry.questionId) ?? entry.points,
+        points: cappedPoints,
+        max: questionMax,
         verdict,
         chosenSummary,
         options: entry.options,

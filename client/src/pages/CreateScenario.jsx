@@ -180,7 +180,7 @@ export default function CreateScenario() {
       roleIds: [],
       options: [
         { id: nid(), text: "", score: 10, kind: "correct" },
-        { id: nid(), text: "", score: 2, kind: "incorrect" },
+        { id: nid(), text: "", score: 0, kind: "incorrect" },
       ],
     },
   ]);
@@ -353,7 +353,7 @@ export default function CreateScenario() {
         roleIds: [],
         options: [
           { id: nid(), text: "", score: 10, kind: "correct" },
-          { id: nid(), text: "", score: 2, kind: "incorrect" },
+          { id: nid(), text: "", score: 0, kind: "incorrect" },
         ],
       },
     ]);
@@ -417,7 +417,7 @@ export default function CreateScenario() {
                 o.id !== oid
                   ? o
                   : o.kind === "correct"
-                  ? { ...o, kind: "incorrect", score: o.score === 10 ? 0 : o.score } // turn off, keep custom score if not default
+                  ? { ...o, kind: "incorrect", score: 0 } // Incorrect options should always have score 0
                   : { ...o, kind: "correct", score: o.score === 0 ? 10 : o.score } // turn on, keep custom score if not default
               ),
             }

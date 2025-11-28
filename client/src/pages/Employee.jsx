@@ -14,21 +14,19 @@ const THEME = [
 ];
 const pickColor = (i, override) => override ?? THEME[i % THEME.length];
 
-/* LocalStorage key (shared with Train.jsx) */
-const reviewKey = (id) => `train:result:${id}`;
-
 const STATUS_META = {
   NotStarted: { label: "Not started", className: "muted", progress: 0 },
   InProgress: { label: "In progress", className: "amber", progress: 50 },
   Completed: { label: "Completed", className: "green", progress: 100 },
 };
 
-const normaliseIncident = (incident, index) => {
+const normaliseIncident = (incident, index, userHasRespondedMap = {}) => {
   if (!incident) return null;
 
   const id = incident.id ?? incident.Id ?? null;
   const scenario = incident.scenario ?? incident.Scenario ?? {};
-  const title = scenario.title ?? scenario.Title ?? incident.title ?? incident.Title ?? "Untitled incident";
+  // Prioritize incident.title over scenario.title
+  const title = incident.title ?? incident.Title ?? scenario.title ?? scenario.Title ?? "Untitled incident";
   const risk = scenario.risk ?? scenario.Risk ?? "Medium";
   const difficulty = typeof risk === "string" ? risk : String(risk);
   const tags = Array.from(
@@ -51,12 +49,12 @@ const normaliseIncident = (incident, index) => {
   const statusKey = typeof rawStatus === "string" ? rawStatus : String(rawStatus);
   const statusMeta = STATUS_META[statusKey] ?? STATUS_META.NotStarted;
 
+  // Check if user has responded (backend check)
+  const userHasResponded = userHasRespondedMap[id] === true;
+  
   let progress = statusMeta.progress;
-  try {
-    const saved = JSON.parse(localStorage.getItem(reviewKey(id)) || "null");
-    if (saved?.answers) progress = Math.max(progress, 100);
-  } catch {
-    // ignore localStorage errors
+  if (userHasResponded) {
+    progress = 100; // User has responded, mark as completed
   }
 
   return {
@@ -65,9 +63,9 @@ const normaliseIncident = (incident, index) => {
     difficulty,
     tags: tags.length ? tags : [difficulty],
     est,
-    statusKey,
-    statusLabel: statusMeta.label,
-    statusClass: statusMeta.className,
+    statusKey: userHasResponded ? "Completed" : statusKey, // Override status if user has responded
+    statusLabel: userHasResponded ? "Completed" : statusMeta.label,
+    statusClass: userHasResponded ? "green" : statusMeta.className,
     progress,
     color: pickColor(index, scenario.color),
   };
@@ -134,8 +132,31 @@ export default function Employee() {
         const { data } = await api.get("/api/incident", { params });
         if (!active) return;
         const incidents = Array.isArray(data) ? data : [];
+        
+        // Check backend for each incident if user has responded
+        const userHasRespondedMap = {};
+        if (user?.email) {
+          await Promise.all(
+            incidents.map(async (incident) => {
+              const incidentId = incident.id ?? incident.Id;
+              if (!incidentId) return;
+              try {
+                const params = new URLSearchParams();
+                params.append("userEmail", user.email);
+                const { data: hasResponded } = await api.get(`/api/response/check/${incidentId}?${params.toString()}`);
+                if (hasResponded === true) {
+                  userHasRespondedMap[incidentId] = true;
+                }
+              } catch (err) {
+                console.warn(`Failed to check response status for incident ${incidentId}`, err);
+                // Continue even if check fails
+              }
+            })
+          );
+        }
+        
         const mapped = incidents
-          .map((incident, index) => normaliseIncident(incident, index))
+          .map((incident, index) => normaliseIncident(incident, index, userHasRespondedMap))
           .filter(Boolean);
         setScenarios(mapped);
       } catch (err) {
@@ -152,7 +173,7 @@ export default function Employee() {
     return () => {
       active = false;
     };
-  }, [statusFilter]);
+  }, [statusFilter, user]);
 
   // Search + filter (applies to both sections)
   const filtered = useMemo(() => {
@@ -219,8 +240,8 @@ export default function Employee() {
       {/* Header */}
       <div className="container header-row">
         <div className="h-left">
-          <h1 className="title">Available Tests</h1>
-          <p className="subtitle">Pick a scenario and shine in your role-based incident response.</p>
+          <h1 className="title">Available Incidents</h1>
+          <p className="subtitle">Pick an incident and respond according to your role.</p>
         </div>
         <div className="h-right">
           <div className="search">
@@ -228,7 +249,7 @@ export default function Employee() {
             <input
               value={rawSearch}
               onChange={(e)=>setRawSearch(e.target.value)}
-              placeholder="Search scenarios, tags…"
+              placeholder="Search incidents, tags…"
             />
           </div>
           <select className="select" value={statusFilter} onChange={(e)=>setStatusFilter(e.target.value)}>

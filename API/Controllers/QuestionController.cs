@@ -3,10 +3,12 @@ using Application.Queries;
 using Application.Common;
 using Domain.Entities;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace API.Controllers;
 
+[Authorize(Roles = "Admin")]
 public class QuestionController : BaseApiController
 {
 

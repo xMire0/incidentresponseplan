@@ -21,12 +21,11 @@ const toGuidString = (value) => {
   return null;
 };
 
-/* —— localStorage helpers —— */
-const reviewKey = (id) => `train:result:${id}`;
+/* —— Review mode helper —— */
 const isReviewMode = () => new URLSearchParams(window.location.search).get("review") === "1";
 
 /* backend scenario normalizer */
-const normalizeIncidentScenario = (incident, scenario) => {
+const normalizeIncidentScenario = (incident, scenario, userRoleId = null) => {
   const incidentId = incident.id ?? incident.Id ?? null;
   const scenarioId = scenario.id ?? scenario.Id ?? null;
   const title = scenario.title ?? scenario.Title ?? incident.title ?? incident.Title ?? "Untitled incident";
@@ -69,6 +68,18 @@ const normalizeIncidentScenario = (incident, scenario) => {
             .filter(Boolean);
           roleIds.forEach((roleId) => questionRoleIds.add(roleId));
 
+          // Filter: Hvis spørgsmålet har roleIds og brugeren har en roleId,
+          // skal brugerens roleId være i spørgsmålets roleIds for at vise det
+          if (roleIds.length > 0 && userRoleId) {
+            const userRoleIdString = typeof userRoleId === 'string' ? userRoleId : String(userRoleId);
+            const normalizedUserRoleId = userRoleIdString.toLowerCase();
+            const hasMatchingRole = roleIds.some(roleId => roleId.toLowerCase() === normalizedUserRoleId);
+            if (!hasMatchingRole) {
+              return null; // Skjul spørgsmålet hvis brugeren ikke har den påkrævede rolle
+            }
+          }
+          // Hvis spørgsmålet ikke har nogen roleIds, vises det til alle (ingen filtrering)
+
           const correctCount = answerOptions.filter((option) => option?.isCorrect ?? option?.IsCorrect).length;
 
           return {
@@ -82,11 +93,13 @@ const normalizeIncidentScenario = (incident, scenario) => {
                 const isCorrect = Boolean(option.isCorrect ?? option.IsCorrect);
                 const weight = Number(option.weight ?? option.Weight ?? 0);
                 const kind = isCorrect ? "correct" : "incorrect";
-                const normalizedScore = isCorrect ? Math.max(10, weight || 10) : weight;
+                // Use the actual weight from the option, don't normalize to minimum 10
+                // The weight should already be set correctly by the backend
+                const score = weight;
                 return {
                   id: optionId,
                   text,
-                  score: normalizedScore,
+                  score: score,
                   kind,
                 };
               })
@@ -99,11 +112,21 @@ const normalizeIncidentScenario = (incident, scenario) => {
     },
   ];
 
+  // Get visible questions (after role filtering) for tags and estimation
+  const visibleQuestions = sections[0]?.questions ?? [];
+  
   const tags = Array.from(
     new Set(
-      questions.flatMap((question) => {
-        const roles = Array.isArray(question.questionRoles ?? question.QuestionRoles)
-          ? question.questionRoles ?? question.QuestionRoles
+      visibleQuestions.flatMap((question) => {
+        // Get roles from the original question data if available
+        const questionData = questions.find(q => {
+          const qId = toGuidString(q.id ?? q.Id);
+          return qId === question.id;
+        });
+        if (!questionData) return [];
+        
+        const roles = Array.isArray(questionData.questionRoles ?? questionData.QuestionRoles)
+          ? questionData.questionRoles ?? questionData.QuestionRoles
           : [];
         return roles
           .map((questionRole) => questionRole.role?.name ?? questionRole.role?.Name ?? questionRole.Role?.name ?? questionRole.Role?.Name)
@@ -112,7 +135,8 @@ const normalizeIncidentScenario = (incident, scenario) => {
     )
   );
 
-  const est = questions.length ? `${Math.max(5, questions.length * 5)}–${Math.max(10, questions.length * 7)} min` : "10–15 min";
+  // Use visible questions count for time estimation
+  const est = visibleQuestions.length ? `${Math.max(5, visibleQuestions.length * 5)}–${Math.max(10, visibleQuestions.length * 7)} min` : "10–15 min";
 
   const rawStatus = incident.status ?? incident.Status ?? "NotStarted";
   const statusKey = typeof rawStatus === "string" ? rawStatus : String(rawStatus);
@@ -132,13 +156,13 @@ const normalizeIncidentScenario = (incident, scenario) => {
   };
 };
 
-const normalizeIncidentData = (raw) => {
+const normalizeIncidentData = (raw, userRoleId = null) => {
   if (!raw) return null;
 
   const scenario = raw.scenario ?? raw.Scenario ?? null;
   if (!scenario) return null;
 
-  return normalizeIncidentScenario(raw, scenario);
+  return normalizeIncidentScenario(raw, scenario, userRoleId);
 };
 
 /* small icons */
@@ -178,44 +202,57 @@ export default function Train(){
   const [loading, setLoading] = useState(true);
   const [sc, setSc] = useState(null);
   const [error, setError] = useState(null);
+  const [submitError, setSubmitError] = useState(null);
 
   // answers: { [qid]: string[] }  (multi-select)
   const [answers, setAnswers] = useState({});
   const [submitted, setSubmitted] = useState(false);
 
   const review = isReviewMode();
-  const hasSavedReview = (() => {
-    try { return !!localStorage.getItem(reviewKey(id)); } catch { return false; }
-  })();
 
   useEffect(()=>{
     let live = true;
     setLoading(true);
     setError(null);
-    api
-      .get(`/api/incident/${id}`)
-      .then(({ data }) => {
+    
+    // Check if user has already responded (backend check)
+    const checkUserResponse = async (incidentId) => {
+      try {
+        const params = new URLSearchParams();
+        if (user?.email) params.append("userEmail", user.email);
+        const { data: hasResponded } = await api.get(`/api/response/check/${incidentId}?${params.toString()}`);
+        return hasResponded === true;
+      } catch (err) {
+        console.warn("Failed to check user response status", err);
+        return false; // If check fails, allow user to proceed (fail open)
+      }
+    };
+
+    Promise.all([
+      api.get(`/api/incident/${id}`),
+      api.get(`/api/incident/${id}`).then(({ data }) => checkUserResponse(data?.id ?? data?.Id ?? id))
+    ])
+      .then(([{ data }, userHasResponded]) => {
         if (!live) return;
-        const detail = normalizeIncidentData(data);
+        // Get user's roleId for filtering questions
+        const userRoleId = user?.roleId ?? user?.RoleId ?? null;
+        const detail = normalizeIncidentData(data, userRoleId);
         if (!detail) {
           setError("Scenario not found.");
           setSc(null);
           return;
         }
         setSc(detail);
-        if (detail.isCompleted) {
+        
+        // Check backend - if user has responded, mark as submitted
+        if (userHasResponded || detail.isCompleted) {
           setSubmitted(true);
         }
-        if (review || detail.isCompleted) {
-          try {
-            const saved = JSON.parse(localStorage.getItem(reviewKey(detail.id)) || "null");
-          if (saved?.answers) {
-            setAnswers(saved.answers);
-            setSubmitted(true);
-          }
-          } catch {
-            // ignore hydration errors
-          }
+        
+        // In review mode or if completed, we should load answers from backend
+        // For now, just mark as submitted - answers will be loaded from backend responses
+        if (review || detail.isCompleted || userHasResponded) {
+          setSubmitted(true);
         }
       })
       .catch((err) => {
@@ -229,7 +266,7 @@ export default function Train(){
         if (live) setLoading(false);
     });
     return () => { live = false; };
-  },[id, review]);
+  },[id, review, user]);
 
   useEffect(() => {
     if (!sc || review) return;
@@ -326,20 +363,8 @@ export default function Train(){
 
   const submit = async () => {
     if (!sc) return;
+    setSubmitError(null); // Clear previous errors
     setSubmitted(true);
-    try {
-      localStorage.setItem(
-        reviewKey(sc.id),
-        JSON.stringify({
-          answers,
-          score,
-          maxScore,
-          completedAt: new Date().toISOString(),
-        })
-      );
-    } catch {
-      // no-op if localStorage is unavailable
-    }
 
     const defaultRoleId = sc.roleIds?.find((roleId) => GUID_REGEX.test(roleId)) ?? null;
 
@@ -370,8 +395,18 @@ export default function Train(){
 
     try {
       await api.post("/api/response/bulk", bulkPayload);
+      setSubmitError(null); // Clear any previous errors on success
     } catch (err) {
       console.error("Failed to persist responses", err);
+      const errorMessage = err.response?.data?.message || err.message || "";
+      if (err.response?.status === 400 || errorMessage.includes("already submitted") || errorMessage.includes("Duplicate")) {
+        setSubmitError("You have already submitted responses for this incident. Duplicate submissions are not allowed.");
+        setSubmitted(true); // Mark as submitted to prevent further attempts
+      } else {
+        setSubmitError("Failed to submit responses. Please try again.");
+        setSubmitted(false); // Allow retry for non-duplicate errors
+      }
+      return; // Don't proceed if submission failed
     }
 
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -418,8 +453,8 @@ export default function Train(){
 
   if (!sc) return null;
 
-  // If user opened /train/:id?review=1 but no saved attempt exists
-  if (review && !hasSavedReview) {
+  // If user opened /train/:id?review=1, check if they have responses in backend
+  if (review && !submitted) {
     return (
       <div className="trainX">
         <div className="bg-blob t-a"/><div className="bg-blob t-b"/><div className="bg-blob t-c"/>
@@ -549,15 +584,22 @@ export default function Train(){
             <div className="aside-meta"><div>Answered</div><b>{answeredCount}/{allQs.length}</b></div>
 
             {!submitted ? (
-              <button
-                className="btn-glow"
-                style={{background:`linear-gradient(90deg, ${sc.color.from}, ${sc.color.to})`}}
-                onClick={submit}
-                disabled={answeredCount === 0}
-              >
-                <span className="shine"/>
-                Submit answers
-              </button>
+              <>
+                {submitError && (
+                  <div style={{padding: "12px", marginBottom: "12px", background: "#fee", border: "1px solid #fcc", borderRadius: "6px", color: "#c33"}}>
+                    {submitError}
+                  </div>
+                )}
+                <button
+                  className="btn-glow"
+                  style={{background:`linear-gradient(90deg, ${sc.color.from}, ${sc.color.to})`}}
+                  onClick={submit}
+                  disabled={answeredCount === 0}
+                >
+                  <span className="shine"/>
+                  Submit answers
+                </button>
+              </>
             ) : (
               <div className="result-box">
                 <div className="r-title">Result</div>

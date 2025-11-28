@@ -77,9 +77,10 @@ public class CreateScenario
                     {
                         weight = 10; // Default for correct answers
                     }
-                    else if (!optionDto.IsCorrect && weight == 0)
+                    else if (!optionDto.IsCorrect)
                     {
-                        weight = 0; // Default for incorrect answers
+                        // Incorrect options should always have weight 0
+                        weight = 0;
                     }
 
                     question.AnswerOptions.Add(new AnswerOption

@@ -16,7 +16,9 @@ export default function Login() {
     setErr("");
     try {
       const { user } = await login(email, password);   // get role from AuthContext
-      if (user.role === "admin") navigate("/admin", { replace: true });
+      // Normalize role comparison (backend returns "Admin", "Analyst", etc.)
+      const normalizedRole = user.role?.charAt(0).toUpperCase() + user.role?.slice(1).toLowerCase();
+      if (normalizedRole === "Admin") navigate("/admin", { replace: true });
       else navigate("/employee", { replace: true });   // developer/employee => /employee
     } catch (e) {
       setErr(e.message || "Login failed");

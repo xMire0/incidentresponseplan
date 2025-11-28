@@ -34,9 +34,10 @@ public class EditAnswerOption
             {
                 weight = 10; // Default for correct answers
             }
-            else if (!request.IsCorrect && weight == 0)
+            else if (!request.IsCorrect)
             {
-                weight = 0; // Default for incorrect answers
+                // Incorrect options should always have weight 0
+                weight = 0;
             }
 
             option.Text = request.Text;

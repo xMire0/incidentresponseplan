@@ -2,6 +2,7 @@ using System;
 using Domain.Entities;
 using Domain.Enum;
 using Microsoft.EntityFrameworkCore;
+using BCrypt.Net;
 
 namespace Persistence;
 
@@ -9,26 +10,27 @@ public class DbInitializer
 {
     public static async Task SeedData(AppDbContext context)
     {
-        // Check if data already exists
-        if (await context.Scenarios.AnyAsync() && await context.Users.AnyAsync())
-        {
-            return; // Data already seeded
-        }
+        // Always reseed roles and users to ensure correct setup
 
         //
-        // 1️⃣ Seed Roles (only keep: admin, analyst, developer, sikkerhedsmanager)
+        // 1️⃣ Seed Roles
         //
-        // Remove all existing roles first
+        // Remove all existing roles and users first
+        var allExistingUsers = await context.Users.ToListAsync();
+        context.Users.RemoveRange(allExistingUsers);
+        await context.SaveChangesAsync();
+
         var allExistingRoles = await context.Roles.ToListAsync();
         context.Roles.RemoveRange(allExistingRoles);
         await context.SaveChangesAsync();
 
+        // Create only the required roles
         var roles = new List<Role>
         {
             new() { Name = "Admin", SecurityClearence = SecurityClearence.Admin },
             new() { Name = "Analyst", SecurityClearence = SecurityClearence.Medium },
             new() { Name = "Developer", SecurityClearence = SecurityClearence.Medium },
-            new() { Name = "Sikkerhedsmanager", SecurityClearence = SecurityClearence.High }
+            new() { Name = "Consultant", SecurityClearence = SecurityClearence.Medium }
         };
         context.Roles.AddRange(roles);
         await context.SaveChangesAsync();
@@ -36,23 +38,17 @@ public class DbInitializer
         var adminRole = roles.First(r => r.Name == "Admin");
         var analystRole = roles.First(r => r.Name == "Analyst");
         var developerRole = roles.First(r => r.Name == "Developer");
-        var sikkerhedsmanagerRole = roles.First(r => r.Name == "Sikkerhedsmanager");
+        var consultantRole = roles.First(r => r.Name == "Consultant");
 
         //
-        // 1.5️⃣ Seed Users with passwords
+        // 1.5️⃣ Seed Users with BCrypt hashed passwords
         //
-        // Simple password hashing (in production, use BCrypt or similar)
-        // For demo purposes, we'll store plain text passwords (NOT recommended for production!)
-        // Passwords: user1, user2, user3, etc.
         var users = new List<User>
         {
-            new() { Username = "admin1", Email = "admin1@company.com", PasswordHash = "admin123", RoleId = adminRole.Id },
-            new() { Username = "analyst1", Email = "analyst1@company.com", PasswordHash = "analyst123", RoleId = analystRole.Id },
-            new() { Username = "analyst2", Email = "analyst2@company.com", PasswordHash = "analyst456", RoleId = analystRole.Id },
-            new() { Username = "developer1", Email = "developer1@company.com", PasswordHash = "dev123", RoleId = developerRole.Id },
-            new() { Username = "developer2", Email = "developer2@company.com", PasswordHash = "dev456", RoleId = developerRole.Id },
-            new() { Username = "sikkerhed1", Email = "sikkerhed1@company.com", PasswordHash = "sikkerhed123", RoleId = sikkerhedsmanagerRole.Id },
-            new() { Username = "sikkerhed2", Email = "sikkerhed2@company.com", PasswordHash = "sikkerhed456", RoleId = sikkerhedsmanagerRole.Id }
+            new() { Username = "hamudi", Email = "hamudi@hamudi.dk", PasswordHash = BCrypt.Net.BCrypt.HashPassword("hamudi123"), RoleId = consultantRole.Id },
+            new() { Username = "asadi", Email = "asadi@asadi.dk", PasswordHash = BCrypt.Net.BCrypt.HashPassword("asadi123"), RoleId = developerRole.Id },
+            new() { Username = "emir", Email = "emir@emir.dk", PasswordHash = BCrypt.Net.BCrypt.HashPassword("emir123"), RoleId = analystRole.Id },
+            new() { Username = "admin", Email = "admin@admin.dk", PasswordHash = BCrypt.Net.BCrypt.HashPassword("emir123"), RoleId = adminRole.Id }
         };
         context.Users.AddRange(users);
         await context.SaveChangesAsync();
@@ -136,13 +132,14 @@ public class DbInitializer
         };
 
         //
-        // 4️⃣ Link Roles to Questions (optional)
+        // 4️⃣ Link Roles to Questions
         //
-        // Example: all questions apply to Developer and Analyst
+        // All questions apply to Developer, Analyst, and Consultant (employee roles)
         foreach (var q in ransomwareScenario.Questions)
         {
             q.QuestionRoles.Add(new QuestionRole { Role = developerRole });
             q.QuestionRoles.Add(new QuestionRole { Role = analystRole });
+            q.QuestionRoles.Add(new QuestionRole { Role = consultantRole });
         }
 
         //

@@ -41,6 +41,40 @@ public class CreateResponsesBulk
 
             var incidentId = request.IncidentId ?? request.Responses[0].IncidentId;
 
+            // Check if user has already responded to this incident
+            var firstResponse = request.Responses.FirstOrDefault();
+            if (firstResponse != null)
+            {
+                Guid? userIdToCheck = null;
+                
+                // Try to resolve user from email or userId
+                if (firstResponse.UserId.HasValue && firstResponse.UserId.Value != Guid.Empty)
+                {
+                    userIdToCheck = firstResponse.UserId.Value;
+                }
+                else if (!string.IsNullOrWhiteSpace(firstResponse.UserEmail))
+                {
+                    var user = await context.Users
+                        .FirstOrDefaultAsync(u => u.Email == firstResponse.UserEmail, cancellationToken);
+                    if (user != null)
+                    {
+                        userIdToCheck = user.Id;
+                    }
+                }
+
+                // If we have a userId, check for existing responses
+                if (userIdToCheck.HasValue)
+                {
+                    var hasExistingResponses = await context.Responses
+                        .AnyAsync(r => r.IncidentId == incidentId && r.UserId == userIdToCheck.Value, cancellationToken);
+                    
+                    if (hasExistingResponses)
+                    {
+                        throw new InvalidOperationException("User has already submitted responses for this incident. Duplicate submissions are not allowed.");
+                    }
+                }
+            }
+
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
             var createdUsers = new Dictionary<string, Guid>(StringComparer.OrdinalIgnoreCase);
