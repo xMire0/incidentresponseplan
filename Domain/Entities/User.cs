@@ -15,4 +15,8 @@ public class User
     // If each user has one role:
     public Guid RoleId { get; set; }
     public Role Role { get; set; } = null!;
+
+    // If each user has one department:
+    public Guid? DepartmentId { get; set; }
+    public Department? Department { get; set; }
 }
