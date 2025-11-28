@@ -9,6 +9,7 @@ export default function UserManagement() {
   const [loading, setLoading] = useState(true);
   const [users, setUsers] = useState([]);
   const [roles, setRoles] = useState([]);
+  const [departments, setDepartments] = useState([]);
   const [error, setError] = useState(null);
   const [flash, setFlash] = useState(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -18,6 +19,7 @@ export default function UserManagement() {
     email: "",
     password: "",
     roleId: "",
+    departmentId: "",
   });
 
   useEffect(() => {
@@ -28,15 +30,14 @@ export default function UserManagement() {
     setLoading(true);
     try {
       setError(null);
-      const usersRes = await api.get("/api/user");
-      let rolesRes = { data: [] };
-      try {
-        rolesRes = await api.get("/api/role");
-      } catch (err) {
-        console.warn("Roles endpoint not available", err);
-      }
+      const [usersRes, rolesRes, deptsRes] = await Promise.all([
+        api.get("/api/user"),
+        api.get("/api/role").catch(() => ({ data: [] })),
+        api.get("/api/department").catch(() => ({ data: [] })),
+      ]);
       setUsers(Array.isArray(usersRes.data) ? usersRes.data : []);
       setRoles(Array.isArray(rolesRes.data) ? rolesRes.data : []);
+      setDepartments(Array.isArray(deptsRes.data) ? deptsRes.data : []);
     } catch (err) {
       console.error("Failed to load users", err);
       setError("Could not load users. Please try again.");
@@ -48,7 +49,11 @@ export default function UserManagement() {
 
   const handleCreate = async () => {
     try {
-      await api.post("/api/user", formData);
+      const payload = {
+        ...formData,
+        departmentId: formData.departmentId || null,
+      };
+      await api.post("/api/user", payload);
       setFlash({ type: "ok", text: "User created successfully." });
       setShowCreateModal(false);
       resetForm();
@@ -63,7 +68,11 @@ export default function UserManagement() {
 
   const handleEdit = async () => {
     try {
-      await api.put(`/api/user/${editingUser.id}`, formData);
+      const payload = {
+        ...formData,
+        departmentId: formData.departmentId || null,
+      };
+      await api.put(`/api/user/${editingUser.id}`, payload);
       setFlash({ type: "ok", text: "User updated successfully." });
       setEditingUser(null);
       resetForm();
@@ -92,7 +101,7 @@ export default function UserManagement() {
   };
 
   const resetForm = () => {
-    setFormData({ username: "", email: "", password: "", roleId: "" });
+    setFormData({ username: "", email: "", password: "", roleId: "", departmentId: "" });
   };
 
   const openEditModal = (user) => {
@@ -102,6 +111,7 @@ export default function UserManagement() {
       email: user.email || "",
       password: "",
       roleId: user.roleId,
+      departmentId: user.departmentId || "",
     });
   };
 
@@ -150,7 +160,8 @@ export default function UserManagement() {
               <div className="c c1">Username</div>
               <div className="c c2">Email</div>
               <div className="c c3">Role</div>
-              <div className="c c4">Actions</div>
+              <div className="c c4">Department</div>
+              <div className="c c5">Actions</div>
             </div>
 
             {users.map((user) => (
@@ -163,6 +174,15 @@ export default function UserManagement() {
                   <span className="pill">{user.roleName}</span>
                 </div>
                 <div className="c c4">
+                  {user.departmentName ? (
+                    <span className="pill" style={{ background: "#f59e0b20", color: "#f59e0b" }}>
+                      {user.departmentName}
+                    </span>
+                  ) : (
+                    <span className="muted">—</span>
+                  )}
+                </div>
+                <div className="c c5">
                   <button className="btn-ghost" onClick={() => navigate(`/admin/users/${user.id}`)}>
                     View
                   </button>
@@ -221,6 +241,21 @@ export default function UserManagement() {
                 {roles.map((role) => (
                   <option key={role.id} value={role.id}>
                     {role.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="form-group">
+              <label>Department (optional)</label>
+              <select
+                className="input"
+                value={formData.departmentId}
+                onChange={(e) => setFormData({ ...formData, departmentId: e.target.value })}
+              >
+                <option value="">No department</option>
+                {departments.map((dept) => (
+                  <option key={dept.id} value={dept.id}>
+                    {dept.name}
                   </option>
                 ))}
               </select>

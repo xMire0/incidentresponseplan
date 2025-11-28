@@ -37,6 +37,7 @@ public class GetIncidentResults
                     .ThenInclude(r => r.Question)
                 .Include(i => i.Responses)
                     .ThenInclude(r => r.User)
+                        .ThenInclude(u => u.Department)
                 .Include(i => i.Responses)
                     .ThenInclude(r => r.Role)
                 .ToListAsync(cancellationToken);
@@ -59,6 +60,7 @@ public class GetIncidentResults
                     var firstResponse = group.First();
                     var user = firstResponse.User;
                     var role = firstResponse.Role;
+                    var department = user?.Department;
 
                     var detail = new List<QuestionResultDto>();
                     var score = 0;
@@ -179,8 +181,8 @@ public class GetIncidentResults
                         ScenarioTitle = scenario?.Title ?? incident.Title,
                         UserId = user?.Id,
                         UserEmail = user?.Email ?? user?.Username ?? "unknown@user",
-                        TeamId = role?.Id.ToString(),
-                        TeamName = role?.Name,
+                        TeamId = department?.Id.ToString() ?? role?.Id.ToString(),
+                        TeamName = department?.Name ?? role?.Name,
                         Score = score,
                         MaxScore = maxScore,
                         Pct = pct,

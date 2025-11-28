@@ -41,14 +41,36 @@ public class DbInitializer
         var consultantRole = roles.First(r => r.Name == "Consultant");
 
         //
-        // 1.5️⃣ Seed Users with BCrypt hashed passwords
+        // 1.3️⃣ Seed Departments
+        //
+        var allExistingDepartments = await context.Departments.ToListAsync();
+        context.Departments.RemoveRange(allExistingDepartments);
+        await context.SaveChangesAsync();
+
+        var departments = new List<Department>
+        {
+            new() { Name = "IT Support" },
+            new() { Name = "Security" },
+            new() { Name = "Development" },
+            new() { Name = "Management" }
+        };
+        context.Departments.AddRange(departments);
+        await context.SaveChangesAsync();
+
+        var itSupportDept = departments.First(d => d.Name == "IT Support");
+        var securityDept = departments.First(d => d.Name == "Security");
+        var developmentDept = departments.First(d => d.Name == "Development");
+        var managementDept = departments.First(d => d.Name == "Management");
+
+        //
+        // 1.5️⃣ Seed Users with BCrypt hashed passwords and Departments
         //
         var users = new List<User>
         {
-            new() { Username = "hamudi", Email = "hamudi@hamudi.dk", PasswordHash = BCrypt.Net.BCrypt.HashPassword("hamudi123"), RoleId = consultantRole.Id },
-            new() { Username = "asadi", Email = "asadi@asadi.dk", PasswordHash = BCrypt.Net.BCrypt.HashPassword("asadi123"), RoleId = developerRole.Id },
-            new() { Username = "emir", Email = "emir@emir.dk", PasswordHash = BCrypt.Net.BCrypt.HashPassword("emir123"), RoleId = analystRole.Id },
-            new() { Username = "admin", Email = "admin@admin.dk", PasswordHash = BCrypt.Net.BCrypt.HashPassword("emir123"), RoleId = adminRole.Id }
+            new() { Username = "hamudi", Email = "hamudi@hamudi.dk", PasswordHash = BCrypt.Net.BCrypt.HashPassword("hamudi123"), RoleId = consultantRole.Id, DepartmentId = itSupportDept.Id },
+            new() { Username = "asadi", Email = "asadi@asadi.dk", PasswordHash = BCrypt.Net.BCrypt.HashPassword("asadi123"), RoleId = developerRole.Id, DepartmentId = developmentDept.Id },
+            new() { Username = "emir", Email = "emir@emir.dk", PasswordHash = BCrypt.Net.BCrypt.HashPassword("emir123"), RoleId = analystRole.Id, DepartmentId = securityDept.Id },
+            new() { Username = "admin", Email = "admin@admin.dk", PasswordHash = BCrypt.Net.BCrypt.HashPassword("emir123"), RoleId = adminRole.Id, DepartmentId = managementDept.Id }
         };
         context.Users.AddRange(users);
         await context.SaveChangesAsync();

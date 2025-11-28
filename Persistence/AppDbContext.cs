@@ -15,6 +15,7 @@ public class AppDbContext(DbContextOptions options) : DbContext(options)
 
     public DbSet<AnswerOption> AnswerOptions { get; set; } = null!;
     public DbSet<User> Users { get; set; } = null!;
+    public DbSet<Department> Departments { get; set; } = null!;
 
 
 

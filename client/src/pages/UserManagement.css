@@ -11,7 +11,7 @@
 .users-head,
 .users-row {
   display: grid;
-  grid-template-columns: 2fr 2fr 1.5fr 2fr;
+  grid-template-columns: 2fr 2fr 1.5fr 1.5fr 2fr;
   gap: 10px;
   align-items: center;
   padding: 12px 16px;
@@ -37,7 +37,7 @@
   border-bottom: none;
 }
 
-.users-row .c4 {
+.users-row .c5 {
   display: flex;
   gap: 6px;
   flex-wrap: wrap;
@@ -89,5 +89,70 @@
   margin-top: 24px;
   padding-top: 20px;
   border-top: 1px solid var(--edge);
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.modal {
+  background: var(--surface);
+  border: 1px solid var(--edge);
+  border-radius: 16px;
+  padding: 24px;
+  width: min(500px, 90vw);
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+}
+
+.modal h3 {
+  margin: 0 0 20px;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 14px;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table thead {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.table th,
+.table td {
+  padding: 12px 16px;
+  text-align: left;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.table tbody tr:hover {
+  background: var(--surface-2);
+}
+
+.empty {
+  text-align: center;
+  padding: 40px;
+  color: var(--muted);
 }
 

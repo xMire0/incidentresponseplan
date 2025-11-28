@@ -13,6 +13,7 @@ public class CreateUser
         public string? Email { get; set; }
         public string? Password { get; set; }
         public Guid RoleId { get; set; }
+        public Guid? DepartmentId { get; set; }
     }
 
     public class Handler(AppDbContext context) : IRequestHandler<Command, string>
@@ -28,7 +29,8 @@ public class CreateUser
                 Username = request.Username,
                 Email = request.Email,
                 PasswordHash = passwordHash,
-                RoleId = request.RoleId
+                RoleId = request.RoleId,
+                DepartmentId = request.DepartmentId
             };
 
             context.Users.Add(user);

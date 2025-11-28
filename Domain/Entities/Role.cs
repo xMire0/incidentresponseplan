@@ -13,4 +13,7 @@ public class Role
 
     // Relation: Role ↔ Questions (M:N via QuestionRole)
     public ICollection<QuestionRole> QuestionRoles { get; set; } = new List<QuestionRole>();
+    
+    // Relation: Role ↔ Users (1:N)
+    public ICollection<User> Users { get; set; } = new List<User>();
 }

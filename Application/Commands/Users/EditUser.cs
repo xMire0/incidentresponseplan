@@ -14,6 +14,7 @@ public class EditUser
         public string? Email { get; set; }
         public string? Password { get; set; }
         public Guid? RoleId { get; set; }
+        public Guid? DepartmentId { get; set; }
     }
 
     public class Handler(AppDbContext context) : IRequestHandler<Command>
@@ -34,6 +35,11 @@ public class EditUser
 
             if (request.RoleId.HasValue)
                 user.RoleId = request.RoleId.Value;
+
+            if (request.DepartmentId.HasValue)
+                user.DepartmentId = request.DepartmentId.Value;
+            else if (request.DepartmentId == Guid.Empty)
+                user.DepartmentId = null; // Allow clearing department
 
             await context.SaveChangesAsync(cancellationToken);
         }

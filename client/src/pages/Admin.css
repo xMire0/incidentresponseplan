@@ -12,6 +12,8 @@
   --green-1: #2ecc71; --green-2: #13b36b;
   --blue-1: #4ea5ff; --blue-2: #246bff;
   --purple-1: #b06bff; --purple-2: #6b61ff;
+  --orange-1: #f59e0b; --orange-2: #ef4444;
+  --pink-1: #ec4899; --pink-2: #be185d;
 
   --radius-card: 16px;
   --radius-btn: 12px;
@@ -173,6 +175,8 @@
 .dot-green { background: #16c784; }
 .dot-blue { background: #3b82f6; }
 .dot-purple { background: #a78bfa; }
+.dot-orange { background: #f59e0b; }
+.dot-pink { background: #ec4899; }
 
 /* Card titles + descriptions */
 .card-title {
@@ -208,6 +212,12 @@
 }
 .btn-gradient.purple {
   background: linear-gradient(90deg, var(--purple-1), var(--purple-2));
+}
+.btn-gradient.orange {
+  background: linear-gradient(90deg, var(--orange-1), var(--orange-2));
+}
+.btn-gradient.pink {
+  background: linear-gradient(90deg, var(--pink-1), var(--pink-2));
 }
 .btn-gradient:hover {
   filter: brightness(1.05);

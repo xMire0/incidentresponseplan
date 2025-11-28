@@ -1,29 +1,42 @@
-using Application.Common;
+using Application.Commands;
 using Application.Queries;
-using Domain.Entities;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using Persistence;
 
 namespace API.Controllers;
 
-[Authorize]
+[Authorize(Roles = "Admin")]
+[Route("api/role")]
+[ApiController]
 public class RoleController : BaseApiController
 {
-    private readonly AppDbContext _context;
-
-    public RoleController(IMediator mediator, AppDbContext context)
+    [HttpGet]
+    public async Task<ActionResult<List<GetRolesList.RoleDto>>> GetRoles()
     {
-        _context = context;
+        return await Mediator.Send(new GetRolesList.Query());
     }
 
-    [HttpGet]
-    public async Task<ActionResult<List<Role>>> GetRoles()
+    [HttpPost]
+    public async Task<ActionResult<string>> CreateRole([FromBody] CreateRole.Command command)
     {
-        var roles = await _context.Roles.ToListAsync();
-        return Ok(roles);
+        var roleId = await Mediator.Send(command);
+        return Ok(roleId);
+    }
+
+    [HttpPut("{id}")]
+    public async Task<IActionResult> EditRole(Guid id, [FromBody] EditRole.Command command)
+    {
+        command.Id = id;
+        await Mediator.Send(command);
+        return NoContent();
+    }
+
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> DeleteRole(Guid id)
+    {
+        await Mediator.Send(new DeleteRole.Command { Id = id });
+        return Ok();
     }
 }
 

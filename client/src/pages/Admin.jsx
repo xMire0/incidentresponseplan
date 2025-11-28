@@ -188,32 +188,89 @@ export default function Admin() {
           </article>
 
           {/* View Scenarios */}
-<article className="admin-card">
-  <div className="card-top">
-    <span
-      className="card-icon"
-      style={{
-        background: "linear-gradient(135deg,#22c1c3,#6b61ff)",
-        boxShadow: "0 0 12px rgba(107,97,255,.35)",
-      }}
-    >
-      <svg viewBox="0 0 24 24" width="24" height="24">
-        <rect x="3" y="3" width="18" height="18" rx="6" fill="#60a5fa" />
-        <path d="M8 9h8M8 13h8M8 17h5" stroke="#ffffff" strokeWidth="1.8" strokeLinecap="round" fill="none"/>
-      </svg>
-    </span>
-    <span className="dot dot-blue" />
-  </div>
+          <article className="admin-card">
+            <div className="card-top">
+              <span
+                className="card-icon"
+                style={{
+                  background: "linear-gradient(135deg,#22c1c3,#6b61ff)",
+                  boxShadow: "0 0 12px rgba(107,97,255,.35)",
+                }}
+              >
+                <svg viewBox="0 0 24 24" width="24" height="24">
+                  <rect x="3" y="3" width="18" height="18" rx="6" fill="#60a5fa" />
+                  <path d="M8 9h8M8 13h8M8 17h5" stroke="#ffffff" strokeWidth="1.8" strokeLinecap="round" fill="none"/>
+                </svg>
+              </span>
+              <span className="dot dot-blue" />
+            </div>
 
-  <h3 className="card-title">View Scenarios</h3>
-  <p className="card-desc">
-    Pick ready scenarios and send them to employees
-  </p>
+            <h3 className="card-title">View Scenarios</h3>
+            <p className="card-desc">
+              Pick ready scenarios and send them to employees
+            </p>
 
-  <button className="btn-gradient blue" onClick={() => navigate("/admin/scenarios")}>
-    Open scenarios
-  </button>
-</article>
+            <button className="btn-gradient blue" onClick={() => navigate("/admin/scenarios")}>
+              Open scenarios
+            </button>
+          </article>
+
+          {/* Department Management */}
+          <article className="admin-card">
+            <div className="card-top">
+              <span
+                className="card-icon"
+                style={{
+                  background: "linear-gradient(135deg,#f59e0b,#ef4444)",
+                  boxShadow: "0 0 12px rgba(245,158,11,.4)",
+                }}
+              >
+                <svg viewBox="0 0 24 24" width="24" height="24">
+                  <rect x="3" y="3" width="18" height="18" rx="4" fill="#f59e0b" />
+                  <path d="M8 8h8v8H8z" stroke="#ffffff" strokeWidth="1.8" fill="none" />
+                </svg>
+              </span>
+              <span className="dot dot-orange" />
+            </div>
+
+            <h3 className="card-title">Departments</h3>
+            <p className="card-desc">
+              Manage departments and organize users by department
+            </p>
+
+            <button className="btn-gradient orange" onClick={() => navigate("/admin/departments")}>
+              Manage Departments
+            </button>
+          </article>
+
+          {/* Role Management */}
+          <article className="admin-card">
+            <div className="card-top">
+              <span
+                className="card-icon"
+                style={{
+                  background: "linear-gradient(135deg,#ec4899,#be185d)",
+                  boxShadow: "0 0 12px rgba(236,72,153,.4)",
+                }}
+              >
+                <svg viewBox="0 0 24 24" width="24" height="24">
+                  <rect x="3" y="3" width="18" height="18" rx="4" fill="#ec4899" />
+                  <circle cx="12" cy="9" r="2" fill="#ffffff" />
+                  <path d="M6 20v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2" stroke="#ffffff" strokeWidth="1.8" fill="none" />
+                </svg>
+              </span>
+              <span className="dot dot-pink" />
+            </div>
+
+            <h3 className="card-title">Roles</h3>
+            <p className="card-desc">
+              Manage roles and security clearance levels
+            </p>
+
+            <button className="btn-gradient pink" onClick={() => navigate("/admin/roles")}>
+              Manage Roles
+            </button>
+          </article>
         </section>
       </div>
     </div>

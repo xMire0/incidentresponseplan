@@ -17,6 +17,8 @@ import CreateIncident from "./pages/CreateIncident.jsx";
 import ViewIncidents from "./pages/ViewIncidents.jsx";
 import UserManagement from "./pages/UserManagement.jsx";
 import UserDetails from "./pages/UserDetails.jsx";
+import DepartmentManagement from "./pages/DepartmentManagement.jsx";
+import RoleManagement from "./pages/RoleManagement.jsx";
 
 export default function App() {
   const { pathname } = useLocation();
@@ -68,6 +70,8 @@ export default function App() {
           <Route path="/admin/scenario/:id/incidents" element={<ViewIncidents />} />
           <Route path="/admin/users" element={<UserManagement />} />
           <Route path="/admin/users/:id" element={<UserDetails />} />
+          <Route path="/admin/departments" element={<DepartmentManagement />} />
+          <Route path="/admin/roles" element={<RoleManagement />} />
         </Route>
 
         {/* Fallback → Login */}
