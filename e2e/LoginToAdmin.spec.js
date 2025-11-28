@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import { brotliCompress } from 'zlib';
 
 test('Login as administrator', async ({ page }) => {
-    await page.goto('/'); // // uses the baseURL automatically from playwright.config.js
+    await page.goto('/'); //uses the baseURL automatically from playwright.config.js
 
     const emailField = page.locator('#email');
     await emailField.fill('admin@admin.com');
