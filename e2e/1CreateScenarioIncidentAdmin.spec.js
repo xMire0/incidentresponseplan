@@ -13,6 +13,9 @@ test('Create Scenario and Incident as admin', async ({ page }) => {
     const loginButton = page.locator('button[type="submit"]');
     await loginButton.click();
 
+    
+    await page.locator('button[type="submit"]').click({ force: true });
+
     const createScenarioButton = page.locator('button.btn-gradient.green');
     await createScenarioButton.click();
 

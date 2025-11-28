@@ -18,14 +18,27 @@ test('Login as administrator and view incident results', async ({ page }) => {
         hasText: 'Open results'
     });
     await openResultsButton.click();
+    await page.waitForTimeout(2000);
 
-    const scenarioRow = page.locator('.t-row', {
+
+    const scenarioRow = page.locator('.t-row-results', {
     hasText: 'Phishing attack - Automated Test Example'
 });
+
     const viewButton = scenarioRow.getByRole('button', { name: 'View' });
     await viewButton.click();
 
+    const question1 = page.locator('.q-toggle', {
+    hasText: 'Is this a test?'
+});
+    await question1.click();
+
     
+    const question2 = page.locator('.q-toggle', {
+    hasText: 'When should communication with management occur?'
+});
+    await question2.click();
+
 
 
 });
