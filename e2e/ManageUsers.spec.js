@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-test('Login as administrator', async ({ page }) => {
+test('Manage Users as administrator', async ({ page }) => {
     await page.goto('/');
 
     const emailField = page.locator('#email');
