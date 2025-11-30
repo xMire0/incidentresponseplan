@@ -27,8 +27,9 @@ test('Manage Users as administrator', async ({ page }) => {
     const passwordInput = page.locator('input[type="password"]');
     await passwordInput.fill('AutomatedPassword123');
 
-    const roleDropdown = page.locator('select.input');
+    const roleDropdown = page.locator('select.input').first();
     await roleDropdown.selectOption({ label: 'Employee' });
+
 
     const createButton = page.locator('button.btn-primary', { hasText: 'Create' }).last();
     await createButton.click();

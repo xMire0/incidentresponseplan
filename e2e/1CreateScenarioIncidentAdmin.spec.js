@@ -51,7 +51,6 @@ test('Create Scenario and Incident as admin', async ({ page }) => {
     await page.getByRole('button', { name: /All roles/i }).click();
     await page.getByRole('button', { name: 'Analyst' }).click();
     await page.getByRole('button', { name: 'Developer' }).click();
-    await page.getByRole('button', { name: 'IT' }).click();
 
     const option1Input = page.locator('input[placeholder="Option 1 text"]');
     await option1Input.fill('No');
