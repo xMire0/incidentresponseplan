@@ -30,7 +30,7 @@ public class DbInitializer
             new() { Name = "Admin", SecurityClearence = SecurityClearence.Admin },
             new() { Name = "Analyst", SecurityClearence = SecurityClearence.Medium },
             new() { Name = "Developer", SecurityClearence = SecurityClearence.Medium },
-            new() { Name = "Consultant", SecurityClearence = SecurityClearence.Medium }
+            new() { Name = "Consultant", SecurityClearence = SecurityClearence.Medium },
         };
         context.Roles.AddRange(roles);
         await context.SaveChangesAsync();
@@ -70,7 +70,10 @@ public class DbInitializer
             new() { Username = "hamudi", Email = "hamudi@hamudi.dk", PasswordHash = BCrypt.Net.BCrypt.HashPassword("hamudi123"), RoleId = consultantRole.Id, DepartmentId = itSupportDept.Id },
             new() { Username = "asadi", Email = "asadi@asadi.dk", PasswordHash = BCrypt.Net.BCrypt.HashPassword("asadi123"), RoleId = developerRole.Id, DepartmentId = developmentDept.Id },
             new() { Username = "emir", Email = "emir@emir.dk", PasswordHash = BCrypt.Net.BCrypt.HashPassword("emir123"), RoleId = analystRole.Id, DepartmentId = securityDept.Id },
-            new() { Username = "admin", Email = "admin@admin.dk", PasswordHash = BCrypt.Net.BCrypt.HashPassword("emir123"), RoleId = adminRole.Id, DepartmentId = managementDept.Id }
+            new() { Username = "admin", Email = "admin@admin.dk", PasswordHash = BCrypt.Net.BCrypt.HashPassword("emir123"), RoleId = adminRole.Id, DepartmentId = managementDept.Id },
+            new() { Username = "adminforplaywright", Email = "admin@admin.com", PasswordHash = BCrypt.Net.BCrypt.HashPassword("123"), RoleId = adminRole.Id, DepartmentId = managementDept.Id},
+            new() { Username = "employeeforplaywright", Email = "employee@employee.com", PasswordHash = BCrypt.Net.BCrypt.HashPassword("123"), RoleId = developerRole.Id, DepartmentId = developmentDept.Id} 
+
         };
         context.Users.AddRange(users);
         await context.SaveChangesAsync();
