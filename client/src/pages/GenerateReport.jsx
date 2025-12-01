@@ -1,41 +1,40 @@
 // src/pages/GenerateReport.jsx
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import api from "../services/api";
 import "./GenerateReport.css";
 
-/* ---------- Mock data (shape mirrors ViewResults) ---------- */
-const MOCK_RUNS = [
-  // minimal seed; add more rows as desired
-  mkRun("morgan.613@contoso.com", "Data Breach — S3 Bucket", 60, 8, "2025-10-22T16:05:00Z"),
-  mkRun("alex.594@globex.io", "Phishing Attack on Email", 40, 8, "2025-10-22T09:11:00Z"),
-  mkRun("sam.972@mail.test", "Phishing Attack on Email", 40, 20, "2025-10-21T13:02:00Z"),
-  mkRun("taylor.191@acme.com", "Data Breach — S3 Bucket", 60, 20, "2025-10-21T11:15:00Z"),
-  mkRun("alex.670@contoso.com", "Data Breach — S3 Bucket", 60, 43, "2025-10-20T10:25:00Z"),
-  mkRun("chris.111@contoso.com", "Data Breach — S3 Bucket", 60, 28, "2025-10-20T08:45:00Z"),
-  mkRun("noah.511@mail.test", "Phishing Attack on Email", 40, 12, "2025-10-19T14:52:00Z"),
-  mkRun("taylor.357@contoso.com", "Ransomware Detected", 50, 47, "2025-10-19T09:20:00Z"),
-];
-
-function mkRun(user, scenario, maxPts, score, iso) {
-  const pct = Math.round((score / maxPts) * 100);
-  const verdict = pct >= 70 ? "Pass" : "Fail";
-  return {
-    id: cryptoRandom(),
-    user,
-    scenario,
-    score,
-    max: maxPts,
-    pct,
-    verdict,
-    date: new Date(iso).toISOString(),
-  };
-}
+/* ---------- Helper function for generating IDs ---------- */
 function cryptoRandom() {
   try {
     return crypto.randomUUID();
   } catch {
     return Math.random().toString(36).slice(2);
   }
+}
+
+/* ---------- Map backend IncidentResultDto to component format ---------- */
+function mapResultToRun(result) {
+  // Capitalize status: "pass" -> "Pass", "fail" -> "Fail"
+  const verdict = result.status 
+    ? result.status.charAt(0).toUpperCase() + result.status.slice(1).toLowerCase()
+    : "Fail";
+  
+  // Handle date: use CompletedAt, fallback to current date if null
+  const date = result.completedAt 
+    ? new Date(result.completedAt).toISOString()
+    : new Date().toISOString();
+  
+  return {
+    id: result.id || cryptoRandom(),
+    user: result.userEmail || "Unknown user",
+    scenario: result.scenarioTitle || result.incidentTitle || "Unknown scenario",
+    score: result.score || 0,
+    max: result.maxScore || 0,
+    pct: result.pct || 0,
+    verdict: verdict,
+    date: date,
+  };
 }
 
 /* ---------- Filters + helpers ---------- */
@@ -51,11 +50,45 @@ const GROUPS = [
 export default function GenerateReport() {
   const navigate = useNavigate();
 
-  // pretend to fetch once (swap with your GET /api/results later)
+  // State for data, loading, and errors
   const [runs, setRuns] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Fetch real data from API
   useEffect(() => {
-    const t = setTimeout(() => setRuns(MOCK_RUNS), 250);
-    return () => clearTimeout(t);
+    let active = true;
+    
+    async function fetchData() {
+      setLoading(true);
+      setError(null);
+      
+      try {
+        const { data } = await api.get("/api/incident/results");
+        
+        if (!active) return;
+        
+        // Map IncidentResultDto[] to component format
+        const mappedRuns = Array.isArray(data) 
+          ? data.map(mapResultToRun)
+          : [];
+        
+        setRuns(mappedRuns);
+      } catch (err) {
+        console.error("Failed to load incident results", err);
+        if (!active) return;
+        setError(err.response?.data?.message || err.message || "Failed to load data");
+        setRuns([]);
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+    
+    fetchData();
+    
+    return () => {
+      active = false;
+    };
   }, []);
 
   // filter state
@@ -211,25 +244,52 @@ export default function GenerateReport() {
         <h1 className="page-title">Generate Reports</h1>
         <p className="page-subtitle">Filter, summarize, and export submissions.</p>
 
-        {/* KPIs */}
-        <div className="metric-grid">
-          <div className="metric">
-            <div className="m-label">Average</div>
-            <div className="m-value">{kpis.avg}%</div>
+        {/* Loading state */}
+        {loading && (
+          <div className="panel">
+            <div className="empty">Loading data...</div>
           </div>
-          <div className="metric">
-            <div className="m-label">Pass rate</div>
-            <div className="m-value">{kpis.passRate}%</div>
-          </div>
-          <div className="metric">
-            <div className="m-label">Rows</div>
-            <div className="m-value">{kpis.count}</div>
-          </div>
-        </div>
+        )}
 
-        {/* Filters */}
-        <div className="panel">
-          <div className="filters reports">
+        {/* Error state */}
+        {error && !loading && (
+          <div className="panel">
+            <div className="empty" style={{ color: "#ef4444" }}>
+              <h3>Error loading data</h3>
+              <p>{error}</p>
+            </div>
+          </div>
+        )}
+
+        {/* No data state */}
+        {!loading && !error && runs.length === 0 && (
+          <div className="panel">
+            <div className="empty">No data available. Complete some incidents to see results here.</div>
+          </div>
+        )}
+
+        {/* KPIs - only show if not loading and no error */}
+        {!loading && !error && (
+          <div className="metric-grid">
+            <div className="metric">
+              <div className="m-label">Average</div>
+              <div className="m-value">{kpis.avg}%</div>
+            </div>
+            <div className="metric">
+              <div className="m-label">Pass rate</div>
+              <div className="m-value">{kpis.passRate}%</div>
+            </div>
+            <div className="metric">
+              <div className="m-label">Rows</div>
+              <div className="m-value">{kpis.count}</div>
+            </div>
+          </div>
+        )}
+
+        {/* Filters - only show if not loading and no error */}
+        {!loading && !error && (
+          <div className="panel">
+            <div className="filters reports">
             <select className="input" value={scenario} onChange={e=>setScenario(e.target.value)}>
               {scenarios.map(s => <option key={s}>{s}</option>)}
             </select>
@@ -286,10 +346,11 @@ export default function GenerateReport() {
               <span>Include raw rows in export</span>
             </label>
           </div>
-        </div>
+          </div>
+        )}
 
-        {/* Group summary (if any) */}
-        {groupBy !== "none" && (
+        {/* Group summary (if any) - only show if not loading and no error */}
+        {!loading && !error && groupBy !== "none" && (
           <div className="panel">
             <div className="group-head">
               <h3 className="panel-title">Grouped summary</h3>
@@ -314,8 +375,9 @@ export default function GenerateReport() {
           </div>
         )}
 
-        {/* Raw rows */}
-        <div className="panel">
+        {/* Raw rows - only show if not loading and no error */}
+        {!loading && !error && (
+          <div className="panel">
           <div className="group-head">
             <h3 className="panel-title">Rows</h3>
             <span className="muted">{filtered.length} items</span>
@@ -345,7 +407,8 @@ export default function GenerateReport() {
             ))}
             {!filtered.length && <div className="empty">No rows match the current filters.</div>}
           </div>
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );
