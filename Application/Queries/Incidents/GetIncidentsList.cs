@@ -13,6 +13,7 @@ public class GetIncidentsList
     public class Query : IRequest<List<Incident>>
     {
         public string? Status { get; set; }
+        public Guid? UserRoleId { get; set; }
     }
 
     public class Handler(AppDbContext context) : IRequestHandler<Query, List<Incident>>
@@ -37,7 +38,32 @@ public class GetIncidentsList
                 queryable = queryable.Where(i => i.Status == status);
             }
 
-            return await queryable.ToListAsync(cancellationToken);
+            var incidents = await queryable.ToListAsync(cancellationToken);
+
+            // Filter questions based on user role for each incident
+            foreach (var incident in incidents)
+            {
+                if (incident.Scenario != null)
+                {
+                    if (request.UserRoleId.HasValue)
+                    {
+                        // User has a role: show questions without roles OR questions matching user's role
+                        incident.Scenario.Questions = incident.Scenario.Questions
+                            .Where(q => q.QuestionRoles.Count == 0 || 
+                                       q.QuestionRoles.Any(qr => qr.RoleId == request.UserRoleId.Value))
+                            .ToList();
+                    }
+                    else
+                    {
+                        // User has no role: only show questions without roles
+                        incident.Scenario.Questions = incident.Scenario.Questions
+                            .Where(q => q.QuestionRoles.Count == 0)
+                            .ToList();
+                    }
+                }
+            }
+
+            return incidents;
         }
     }
 }

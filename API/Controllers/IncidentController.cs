@@ -6,6 +6,7 @@ using Domain.Entities;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace API.Controllers;
 
@@ -17,13 +18,36 @@ public class IncidentController : BaseApiController
     
     public async Task<ActionResult<List<Incident>>> GetQuestions()
     {
-        return await Mediator.Send(new GetIncidentsList.Query());
+        // Extract RoleId from JWT claims
+        var roleIdClaim = User.FindFirst("RoleId")?.Value;
+        Guid? userRoleId = null;
+        if (!string.IsNullOrEmpty(roleIdClaim) && Guid.TryParse(roleIdClaim, out var roleId))
+        {
+            userRoleId = roleId;
+        }
+
+        return await Mediator.Send(new GetIncidentsList.Query 
+        { 
+            UserRoleId = userRoleId
+        });
     }
 
     [HttpGet("{id}")]
     public async Task<ActionResult<Incident>> GetIncidentDetails(string id)
     {
-        var incident = await Mediator.Send(new GetIncidentDetails.Query { Id = id });
+        // Extract RoleId from JWT claims
+        var roleIdClaim = User.FindFirst("RoleId")?.Value;
+        Guid? userRoleId = null;
+        if (!string.IsNullOrEmpty(roleIdClaim) && Guid.TryParse(roleIdClaim, out var roleId))
+        {
+            userRoleId = roleId;
+        }
+
+        var incident = await Mediator.Send(new GetIncidentDetails.Query 
+        { 
+            Id = id,
+            UserRoleId = userRoleId
+        });
 
         if (incident is null)
             return NotFound();
