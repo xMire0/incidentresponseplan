@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using Domain.Entities;
 using Domain.Enum;
 using Microsoft.EntityFrameworkCore;
@@ -10,90 +11,146 @@ public class DbInitializer
 {
     public static async Task SeedData(AppDbContext context)
     {
-        // Always reseed roles and users to ensure correct setup
+        // Seed data only if it doesn't exist - preserve user-created data
 
         //
-        // 1️⃣ Seed Roles
+        // 1️⃣ Seed Roles - kun hvis de ikke findes
         //
-        // Remove all existing roles and users first
-        var allExistingUsers = await context.Users.ToListAsync();
-        context.Users.RemoveRange(allExistingUsers);
-        await context.SaveChangesAsync();
+        var adminRole = await context.Roles.FirstOrDefaultAsync(r => r.Name == "Admin");
+        var analystRole = await context.Roles.FirstOrDefaultAsync(r => r.Name == "Analyst");
+        var developerRole = await context.Roles.FirstOrDefaultAsync(r => r.Name == "Developer");
+        var consultantRole = await context.Roles.FirstOrDefaultAsync(r => r.Name == "Consultant");
 
-        var allExistingRoles = await context.Roles.ToListAsync();
-        context.Roles.RemoveRange(allExistingRoles);
-        await context.SaveChangesAsync();
-
-        // Create only the required roles
-        var roles = new List<Role>
+        if (adminRole == null || analystRole == null || developerRole == null || consultantRole == null)
         {
-            new() { Name = "Admin", SecurityClearence = SecurityClearence.Admin },
-            new() { Name = "Analyst", SecurityClearence = SecurityClearence.Medium },
-            new() { Name = "Developer", SecurityClearence = SecurityClearence.Medium },
-            new() { Name = "Consultant", SecurityClearence = SecurityClearence.Medium },
+            // Create missing roles
+            var rolesToAdd = new List<Role>();
+            
+            if (adminRole == null)
+            {
+                adminRole = new() { Name = "Admin", SecurityClearence = SecurityClearence.Admin };
+                rolesToAdd.Add(adminRole);
+            }
+            if (analystRole == null)
+            {
+                analystRole = new() { Name = "Analyst", SecurityClearence = SecurityClearence.Medium };
+                rolesToAdd.Add(analystRole);
+            }
+            if (developerRole == null)
+            {
+                developerRole = new() { Name = "Developer", SecurityClearence = SecurityClearence.Medium };
+                rolesToAdd.Add(developerRole);
+            }
+            if (consultantRole == null)
+            {
+                consultantRole = new() { Name = "Consultant", SecurityClearence = SecurityClearence.Medium };
+                rolesToAdd.Add(consultantRole);
+            }
+
+            if (rolesToAdd.Count > 0)
+            {
+                context.Roles.AddRange(rolesToAdd);
+                await context.SaveChangesAsync();
+            }
+        }
+
+        //
+        // 1.3️⃣ Seed Departments - kun hvis de ikke findes
+        //
+        var itSupportDept = await context.Departments.FirstOrDefaultAsync(d => d.Name == "IT Support");
+        var securityDept = await context.Departments.FirstOrDefaultAsync(d => d.Name == "Security");
+        var developmentDept = await context.Departments.FirstOrDefaultAsync(d => d.Name == "Development");
+        var managementDept = await context.Departments.FirstOrDefaultAsync(d => d.Name == "Management");
+
+        if (itSupportDept == null || securityDept == null || developmentDept == null || managementDept == null)
+        {
+            var departmentsToAdd = new List<Department>();
+            
+            if (itSupportDept == null)
+            {
+                itSupportDept = new() { Name = "IT Support" };
+                departmentsToAdd.Add(itSupportDept);
+            }
+            if (securityDept == null)
+            {
+                securityDept = new() { Name = "Security" };
+                departmentsToAdd.Add(securityDept);
+            }
+            if (developmentDept == null)
+            {
+                developmentDept = new() { Name = "Development" };
+                departmentsToAdd.Add(developmentDept);
+            }
+            if (managementDept == null)
+            {
+                managementDept = new() { Name = "Management" };
+                departmentsToAdd.Add(managementDept);
+            }
+
+            if (departmentsToAdd.Count > 0)
+            {
+                context.Departments.AddRange(departmentsToAdd);
+                await context.SaveChangesAsync();
+            }
+        }
+
+        //
+        // 1.5️⃣ Seed Users with BCrypt hashed passwords and Departments - kun hvis de ikke findes
+        //
+        var seedUsers = new[]
+        {
+            new { Username = "hamudi", Email = "hamudi@hamudi.dk", Password = "hamudi123", Role = consultantRole, Department = itSupportDept },
+            new { Username = "asadi", Email = "asadi@asadi.dk", Password = "asadi123", Role = developerRole, Department = developmentDept },
+            new { Username = "emir", Email = "emir@emir.dk", Password = "emir123", Role = analystRole, Department = securityDept },
+            new { Username = "admin", Email = "admin@admin.dk", Password = "emir123", Role = adminRole, Department = managementDept },
+            new { Username = "adminforplaywright", Email = "admin@admin.com", Password = "123", Role = adminRole, Department = managementDept },
+            new { Username = "employeeforplaywright", Email = "employee@employee.com", Password = "123", Role = developerRole, Department = developmentDept }
         };
-        context.Roles.AddRange(roles);
-        await context.SaveChangesAsync();
 
-        var adminRole = roles.First(r => r.Name == "Admin");
-        var analystRole = roles.First(r => r.Name == "Analyst");
-        var developerRole = roles.First(r => r.Name == "Developer");
-        var consultantRole = roles.First(r => r.Name == "Consultant");
-
-        //
-        // 1.3️⃣ Seed Departments
-        //
-        var allExistingDepartments = await context.Departments.ToListAsync();
-        context.Departments.RemoveRange(allExistingDepartments);
-        await context.SaveChangesAsync();
-
-        var departments = new List<Department>
+        var usersToAdd = new List<User>();
+        foreach (var seedUser in seedUsers)
         {
-            new() { Name = "IT Support" },
-            new() { Name = "Security" },
-            new() { Name = "Development" },
-            new() { Name = "Management" }
-        };
-        context.Departments.AddRange(departments);
-        await context.SaveChangesAsync();
+            var existingUser = await context.Users.FirstOrDefaultAsync(u => u.Email == seedUser.Email);
+            if (existingUser == null && seedUser.Role != null)
+            {
+                usersToAdd.Add(new User
+                {
+                    Username = seedUser.Username,
+                    Email = seedUser.Email,
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword(seedUser.Password),
+                    RoleId = seedUser.Role.Id,
+                    DepartmentId = seedUser.Department?.Id
+                });
+            }
+        }
 
-        var itSupportDept = departments.First(d => d.Name == "IT Support");
-        var securityDept = departments.First(d => d.Name == "Security");
-        var developmentDept = departments.First(d => d.Name == "Development");
-        var managementDept = departments.First(d => d.Name == "Management");
-
-        //
-        // 1.5️⃣ Seed Users with BCrypt hashed passwords and Departments
-        //
-        var users = new List<User>
+        if (usersToAdd.Count > 0)
         {
-            new() { Username = "hamudi", Email = "hamudi@hamudi.dk", PasswordHash = BCrypt.Net.BCrypt.HashPassword("hamudi123"), RoleId = consultantRole.Id, DepartmentId = itSupportDept.Id },
-            new() { Username = "asadi", Email = "asadi@asadi.dk", PasswordHash = BCrypt.Net.BCrypt.HashPassword("asadi123"), RoleId = developerRole.Id, DepartmentId = developmentDept.Id },
-            new() { Username = "emir", Email = "emir@emir.dk", PasswordHash = BCrypt.Net.BCrypt.HashPassword("emir123"), RoleId = analystRole.Id, DepartmentId = securityDept.Id },
-            new() { Username = "admin", Email = "admin@admin.dk", PasswordHash = BCrypt.Net.BCrypt.HashPassword("emir123"), RoleId = adminRole.Id, DepartmentId = managementDept.Id },
-            new() { Username = "adminforplaywright", Email = "admin@admin.com", PasswordHash = BCrypt.Net.BCrypt.HashPassword("123"), RoleId = adminRole.Id, DepartmentId = managementDept.Id},
-            new() { Username = "employeeforplaywright", Email = "employee@employee.com", PasswordHash = BCrypt.Net.BCrypt.HashPassword("123"), RoleId = developerRole.Id, DepartmentId = developmentDept.Id} 
-
-        };
-        context.Users.AddRange(users);
-        await context.SaveChangesAsync();
+            context.Users.AddRange(usersToAdd);
+            await context.SaveChangesAsync();
+        }
 
         //
-        // 2️⃣ Create Scenario
+        // 2️⃣ Create Scenario - kun hvis den ikke findes
         //
-        var ransomwareScenario = new Scenario
+        var existingScenario = await context.Scenarios
+            .FirstOrDefaultAsync(s => s.Title == "Ransomware Detected on Company Servers");
+
+        if (existingScenario == null)
         {
-            Title = "Ransomware Detected on Company Servers",
-            Description = "During deployment, several backend servers begin encrypting files and displaying a ransom note.",
-            CreatedAt = DateTime.Now,
-            Risk = Risk.High
-        };
+            var ransomwareScenario = new Scenario
+            {
+                Title = "Ransomware Detected on Company Servers",
+                Description = "During deployment, several backend servers begin encrypting files and displaying a ransom note.",
+                CreatedAt = DateTime.Now,
+                Risk = Risk.High
+            };
 
-        //
-        // 3️⃣ Create Questions with Answer Options
-        //
-        ransomwareScenario.Questions = new List<Question>
-        {
+            //
+            // 3️⃣ Create Questions with Answer Options
+            //
+            ransomwareScenario.Questions = new List<Question>
+            {
             new()
             {
                 Text = "What is your first action when detecting ransomware activity?",
@@ -156,32 +213,33 @@ public class DbInitializer
             }
         };
 
-        //
-        // 4️⃣ Link Roles to Questions
-        //
-        // All questions apply to Developer, Analyst, and Consultant (employee roles)
-        foreach (var q in ransomwareScenario.Questions)
-        {
-            q.QuestionRoles.Add(new QuestionRole { Role = developerRole });
-            q.QuestionRoles.Add(new QuestionRole { Role = analystRole });
-            q.QuestionRoles.Add(new QuestionRole { Role = consultantRole });
-        }
+            //
+            // 4️⃣ Link Roles to Questions
+            //
+            // All questions apply to Developer, Analyst, and Consultant (employee roles)
+            foreach (var q in ransomwareScenario.Questions)
+            {
+                q.QuestionRoles.Add(new QuestionRole { Role = developerRole });
+                q.QuestionRoles.Add(new QuestionRole { Role = analystRole });
+                q.QuestionRoles.Add(new QuestionRole { Role = consultantRole });
+            }
 
-        //
-        // 5️⃣ Calculate and set MaxPoints for each question
-        //
-        foreach (var question in ransomwareScenario.Questions)
-        {
-            question.MaxPoints = question.AnswerOptions
-                .Where(o => o.IsCorrect)
-                .Sum(o => o.Weight);
-        }
+            //
+            // 5️⃣ Calculate and set MaxPoints for each question
+            //
+            foreach (var question in ransomwareScenario.Questions)
+            {
+                question.MaxPoints = question.AnswerOptions
+                    .Where(o => o.IsCorrect)
+                    .Sum(o => o.Weight);
+            }
 
-        //
-        // 6️⃣ Save all data
-        //
-        context.Scenarios.Add(ransomwareScenario);
-        await context.SaveChangesAsync();
+            //
+            // 6️⃣ Save all data
+            //
+            context.Scenarios.Add(ransomwareScenario);
+            await context.SaveChangesAsync();
+        }
         
         //
         // 7️⃣ Update MaxPoints for any existing questions (data migration)

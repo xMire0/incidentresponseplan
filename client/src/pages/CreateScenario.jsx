@@ -739,10 +739,6 @@ export default function CreateScenario() {
                 </span>
                 <span>{payload.maxScore} max points</span>
               </div>
-
-              <button className="btn-gradient purple" disabled>
-                Generate preview (mock)
-              </button>
             </div>
           </div>
         </div>
