@@ -141,6 +141,9 @@ export default function ViewIncidents() {
             <button className="btn-outlined" onClick={() => navigate(-1)}>
               ← Back
             </button>
+            <button className="btn-outlined" onClick={() => navigate("/admin")}>
+              Back to dashboard
+            </button>
           </div>
         </div>
       </div>
@@ -152,15 +155,15 @@ export default function ViewIncidents() {
           <div className="panel">
             <h3 className="panel-title">Error</h3>
             <p>{error}</p>
-            <button className="btn-outlined" onClick={() => navigate("/admin/scenarios")}>
-              ← Back
+            <button className="btn-outlined" onClick={() => navigate("/admin")}>
+              Back to dashboard
             </button>
           </div>
         ) : !scenario ? (
           <div className="panel">
             <h3 className="panel-title">Scenario not found</h3>
-            <button className="btn-outlined" onClick={() => navigate("/admin/scenarios")}>
-              ← Back
+            <button className="btn-outlined" onClick={() => navigate("/admin")}>
+              Back to dashboard
             </button>
           </div>
         ) : (

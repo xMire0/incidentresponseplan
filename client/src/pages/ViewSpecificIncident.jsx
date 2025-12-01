@@ -361,8 +361,8 @@ export default function ViewSpecificIncident() {
           <div className="panel">
             <h3 className="panel-title">Incident details</h3>
             <p>{error}</p>
-            <button className="btn-outlined" onClick={() => navigate(-1)}>
-              ← Back
+            <button className="btn-outlined" onClick={() => navigate("/admin")}>
+              Back to dashboard
             </button>
           </div>
         </div>
@@ -375,8 +375,8 @@ export default function ViewSpecificIncident() {
       <div className="admin-root">
         <div className="container">
           <p>Incident data not found.</p>
-          <button className="btn-outlined" onClick={() => navigate("/admin/scenarios")}>
-            ← Back
+          <button className="btn-outlined" onClick={() => navigate("/admin")}>
+            Back to dashboard
           </button>
         </div>
       </div>
@@ -397,9 +397,12 @@ export default function ViewSpecificIncident() {
             <span className="brand-name">AdminPro</span>
           </div>
 
-          <div className="right-buttons">
+          <div className="right-buttons" style={{ display: "flex", gap: "8px" }}>
             <button className="btn-outlined" onClick={() => navigate(-1)}>
               ← Back
+            </button>
+            <button className="btn-outlined" onClick={() => navigate("/admin")}>
+              Back to dashboard
             </button>
           </div>
         </div>
