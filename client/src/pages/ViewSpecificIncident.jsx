@@ -207,17 +207,27 @@ const normaliseIncident = (raw) => {
 
     optionRecord.isChosen = true;
 
-    // Incorrect options should always give 0 points
-    const actualPoints = isCorrect ? points : 0;
-    answerEntry.points += actualPoints;
-    participant.totalScore += actualPoints;
-
     if (!participant._questionIds.has(questionKey)) {
       // Use MaxPoints from lookup (which now uses Question.MaxPoints)
       const questionMax = questionMaxLookup.get(questionKey) ?? 0;
       participant.maxScore += questionMax;
       participant._questionIds.add(questionKey);
     }
+  });
+
+  // Recalculate points based on final chosen options state (prevents duplicate counting)
+  participantsMap.forEach((participant) => {
+    participant.totalScore = 0;
+    participant.answersMap.forEach((entry) => {
+      // Recalculate points from chosen options
+      const chosenOptions = entry.options.filter((opt) => opt.isChosen);
+      const pointsForQuestion = chosenOptions
+        .filter((opt) => opt.isCorrect) // Only count correct chosen options
+        .reduce((sum, opt) => sum + (opt.points || 0), 0);
+      
+      entry.points = pointsForQuestion;
+      participant.totalScore += pointsForQuestion;
+    });
   });
 
   const participants = Array.from(participantsMap.values()).map((participant) => {
